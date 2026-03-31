@@ -67,8 +67,9 @@ def main():
     # ── 2. Carica campagna ────────────────────────────────────────────────────
     log.info("Caricamento campagna...")
     camp = load_campaign(args.campagna)
-    impianti_tutti = camp["impianti"]
+    impianti_tutti  = camp["impianti"]
     comuni_campagna = camp["comuni_istat"]
+    comuni_info_db  = camp["comuni_info"]
 
     if args.comuni:
         comuni_da_simulare = [c for c in comuni_campagna if c in args.comuni]
@@ -83,7 +84,7 @@ def main():
     for imp in impianti_tutti:
         imp_per_comune[imp.istat_comune].append(imp)
 
-    dati_istat = load_istat_data(comuni_da_simulare)
+    dati_istat = load_istat_data(comuni_da_simulare, imp_per_comune, comuni_info_db)
     arricchisci_coordinate(dati_istat, imp_per_comune)
 
     # ── 4. Loop per comune ────────────────────────────────────────────────────

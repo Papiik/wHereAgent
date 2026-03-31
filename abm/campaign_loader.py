@@ -1,6 +1,5 @@
 """
-campaign_loader.py — Carica impianti della campagna da MySQL.
-Converte le coordinate italiane (virgola) in float standard.
+campaign_loader.py — Carica impianti della campagna da MySQL (tabella campagneresult).
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -12,19 +11,30 @@ from .config import DB_CONFIG, TIPO_MAP, RAGGIO_DEFAULT_M, RAGGIO_PER_MEZZO
 class ImpiantoABM:
     id: str
     id_campagna: int
-    tipo: str                   # normalizzato via TIPO_MAP
+    tipo: str
     lat: float
     lon: float
     istat_comune: str
     id_provincia: int
     formato: str
     indirizzo: str
-    illuminato: bool            # default True (non in tabella, assumiamo illuminati)
+    illuminato: bool
     digitale: bool
-    raggio_visibilita_m: dict   # raggio per mezzo di trasporto
+    raggio_visibilita_m: dict
 
     def raggio_per(self, mezzo: str) -> int:
         return self.raggio_visibilita_m.get(mezzo, RAGGIO_DEFAULT_M)
+
+
+@dataclass
+class ComuneInfo:
+    """Dati geografici/demografici del comune estratti da campagneresult."""
+    istat_comune:    str
+    nome_comune:     str
+    provincia:       str
+    regione:         str
+    ripartizione_geo: str
+    abitanti:        int
 
 
 def _normalizza_tipo(raw: str) -> str:
@@ -37,9 +47,9 @@ def _normalizza_tipo(raw: str) -> str:
     return "billboard"
 
 
-def _parse_coord(val: str) -> float:
-    """Converte coordinate italiane con virgola in float. Ritorna 0.0 se malformata."""
-    if not val:
+def _parse_coord(val) -> float:
+    """Converte coordinata (stringa con punto o virgola, o numero) in float."""
+    if val is None:
         return 0.0
     try:
         return float(str(val).strip().replace(",", "."))
@@ -56,12 +66,13 @@ def _is_digitale(tipo_det: str, circuito: str) -> bool:
 
 def load_campaign(id_campagna: int, conn_params: dict = None) -> dict:
     """
-    Carica tutti gli impianti di una campagna da MySQL.
+    Carica impianti e dati comuni da campagneresult.
 
     Returns:
         {
             "impianti":      list[ImpiantoABM],
-            "comuni_istat":  list[str],          # codici ISTAT univoci
+            "comuni_istat":  list[str],
+            "comuni_info":   dict[str, ComuneInfo],   # istat → dati comune
             "id_campagna":   int,
         }
     """
@@ -71,17 +82,19 @@ def load_campaign(id_campagna: int, conn_params: dict = None) -> dict:
 
     cur.execute("""
         SELECT
-            id, idCampagna, CodiceInpe, Cimasa,
+            id, idCampagna,
             istatComune, idProvincia,
             TipoImpiantoDet, TipoImpiantoDesc,
             circuito, Formato, Indirizzo,
-            Latitudine, Longitudine
-        FROM campaigns
+            Latitudine, Longitudine,
+            comune, provincia, regione, ripartizionegeo,
+            abitanti
+        FROM campagneresult
         WHERE idCampagna = %s
-          AND Latitudine IS NOT NULL
+          AND Latitudine  IS NOT NULL
           AND Longitudine IS NOT NULL
-          AND Latitudine  != ''
-          AND Longitudine != ''
+          AND Latitudine  != 0
+          AND Longitudine != 0
     """, (id_campagna,))
 
     rows = cur.fetchall()
@@ -89,6 +102,8 @@ def load_campaign(id_campagna: int, conn_params: dict = None) -> dict:
     conn.close()
 
     impianti: list[ImpiantoABM] = []
+    comuni_info: dict[str, ComuneInfo] = {}
+
     for r in rows:
         lat = _parse_coord(r["Latitudine"])
         lon = _parse_coord(r["Longitudine"])
@@ -97,32 +112,44 @@ def load_campaign(id_campagna: int, conn_params: dict = None) -> dict:
 
         tipo     = _normalizza_tipo(r.get("TipoImpiantoDet") or r.get("TipoImpiantoDesc"))
         digitale = _is_digitale(r.get("TipoImpiantoDet"), r.get("circuito"))
+        istat    = str(r["istatComune"] or "")
 
-        # Raggio visibilità per mezzo (billboard ha raggio maggiore)
         raggio = dict(RAGGIO_PER_MEZZO)
         if tipo == "billboard":
             raggio = {k: int(v * 1.5) for k, v in raggio.items()}
 
         impianti.append(ImpiantoABM(
-            id               = str(r["id"]),
-            id_campagna      = id_campagna,
-            tipo             = tipo,
-            lat              = lat,
-            lon              = lon,
-            istat_comune     = str(r["istatComune"] or ""),
-            id_provincia     = int(r["idProvincia"] or 0),
-            formato          = str(r["Formato"] or ""),
-            indirizzo        = str(r["Indirizzo"] or ""),
-            illuminato       = True,   # default: tutti illuminati
-            digitale         = digitale,
+            id                  = str(r["id"]),
+            id_campagna         = id_campagna,
+            tipo                = tipo,
+            lat                 = lat,
+            lon                 = lon,
+            istat_comune        = istat,
+            id_provincia        = int(r["idProvincia"] or 0),
+            formato             = str(r["Formato"] or ""),
+            indirizzo           = str(r["Indirizzo"] or ""),
+            illuminato          = digitale,
+            digitale            = digitale,
             raggio_visibilita_m = raggio,
         ))
+
+        # Salva info comune (una volta per codice ISTAT)
+        if istat and istat not in comuni_info:
+            comuni_info[istat] = ComuneInfo(
+                istat_comune     = istat,
+                nome_comune      = str(r["comune"] or istat),
+                provincia        = str(r["provincia"] or ""),
+                regione          = str(r["regione"] or ""),
+                ripartizione_geo = str(r["ripartizionegeo"] or ""),
+                abitanti         = int(r["abitanti"] or 0),
+            )
 
     comuni = list({imp.istat_comune for imp in impianti if imp.istat_comune})
 
     return {
         "impianti":     impianti,
         "comuni_istat": comuni,
+        "comuni_info":  comuni_info,
         "id_campagna":  id_campagna,
     }
 
@@ -131,7 +158,7 @@ if __name__ == "__main__":
     import sys
     id_c = int(sys.argv[1]) if len(sys.argv) > 1 else 1
     risultato = load_campaign(id_c)
-    print(f"Campagna {id_c}: {len(risultato['impianti'])} impianti")
-    print(f"Comuni ISTAT: {risultato['comuni_istat']}")
-    for imp in risultato["impianti"][:5]:
-        print(f"  {imp.id} | {imp.tipo:10} | {imp.lat},{imp.lon} | {imp.istat_comune}")
+    print(f"Campagna {id_c}: {len(risultato['impianti'])} impianti, "
+          f"{len(risultato['comuni_istat'])} comuni")
+    for istat, ci in list(risultato["comuni_info"].items())[:5]:
+        print(f"  {istat} | {ci.nome_comune} | {ci.provincia} | {ci.regione} | ab={ci.abitanti:,}")

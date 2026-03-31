@@ -200,15 +200,40 @@ def _download_popolazione(codice_istat: str) -> int | None:
 
 
 # ── Costruzione dati comune ───────────────────────────────────────────────────
-def _build_dati(codice_istat: str) -> DatiComuneISTAT:
+def _build_dati(
+    codice_istat: str,
+    impianti: list = None,
+    comune_info=None,        # ComuneInfo dal DB (priorità massima)
+) -> DatiComuneISTAT:
     """Raccoglie nome, coordinate e popolazione per un comune."""
-    # 1. Lookup tabella embedded (istantaneo, no rete)
-    if codice_istat in COMUNI_LOOKUP:
+    # 1. Dati dal DB (campagneresult) — priorità massima, nessuna rete
+    if comune_info and comune_info.abitanti > 0:
+        pop  = comune_info.abitanti
+        nome = comune_info.nome_comune or codice_istat
+        # Centroide da impianti se disponibili, altrimenti (0,0) → arricchisci_coordinate
+        if impianti:
+            lat = round(sum(i.lat for i in impianti) / len(impianti), 5)
+            lon = round(sum(i.lon for i in impianti) / len(impianti), 5)
+        else:
+            lat, lon = 0.0, 0.0
+        log.info(f"ISTAT {codice_istat} — {nome} | pop={pop:,} | db")
+
+    # 2. Lookup tabella embedded
+    elif codice_istat in COMUNI_LOOKUP:
         nome, lat, lon, pop = COMUNI_LOOKUP[codice_istat]
         log.info(f"ISTAT {codice_istat} — {nome} | pop={pop:,} | lookup")
+
+    # 3. Centroide da impianti (nessuna chiamata di rete)
+    elif impianti:
+        lat = round(sum(i.lat for i in impianti) / len(impianti), 5)
+        lon = round(sum(i.lon for i in impianti) / len(impianti), 5)
+        pop = _download_popolazione(codice_istat) or 50000
+        nome = codice_istat
+        log.info(f"ISTAT {codice_istat} — {nome} | pop={pop:,} | centroide impianti ({lat:.4f},{lon:.4f})")
+
+    # 4. Nominatim — solo se non abbiamo nulla
     else:
-        # 2. Nominatim per coordinate + lookup popolazione
-        time.sleep(1.0)   # rispetta rate limit Nominatim (1 req/sec)
+        time.sleep(1.0)
         nome, lat, lon = _coordinate_nominatim(codice_istat)
         pop = _download_popolazione(codice_istat) or 50000
         log.info(f"ISTAT {codice_istat} — {nome} | pop={pop:,} | ({lat:.4f},{lon:.4f})")
@@ -248,18 +273,37 @@ def arricchisci_coordinate(
         _salva_cache(dati)
 
 
-def load_istat_data(codici_istat: list[str]) -> dict[str, DatiComuneISTAT]:
+def load_istat_data(
+    codici_istat: list[str],
+    impianti_per_comune: dict[str, list] = None,
+    comuni_info: dict = None,             # dict[str, ComuneInfo] da campaign_loader
+) -> dict[str, DatiComuneISTAT]:
     """
     Carica dati ISTAT per una lista di codici comuni.
-    Usa cache locale → API/lookup → fallback.
+    Priorità: DB (campagneresult) → cache → lookup → impianti → Nominatim.
+
+    Args:
+        codici_istat        : lista codici ISTAT comuni
+        impianti_per_comune : dict istat → list[ImpiantoABM]
+        comuni_info         : dict istat → ComuneInfo (da campaign_loader)
 
     Returns:
         dict  codice_istat → DatiComuneISTAT
     """
     risultati: dict[str, DatiComuneISTAT] = {}
+    imp_map  = impianti_per_comune or {}
+    info_map = comuni_info or {}
 
     for cod in codici_istat:
         if not cod:
+            continue
+
+        # Se abbiamo dati DB freschi con popolazione valida, salta la cache
+        ci = info_map.get(cod)
+        if ci and ci.abitanti > 0:
+            dati = _build_dati(cod, impianti=imp_map.get(cod), comune_info=ci)
+            _salva_cache(dati)
+            risultati[cod] = dati
             continue
 
         cached = _carica_cache(cod)
@@ -268,7 +312,7 @@ def load_istat_data(codici_istat: list[str]) -> dict[str, DatiComuneISTAT]:
             risultati[cod] = cached
             continue
 
-        dati = _build_dati(cod)
+        dati = _build_dati(cod, impianti=imp_map.get(cod), comune_info=ci)
         _salva_cache(dati)
         risultati[cod] = dati
 

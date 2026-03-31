@@ -38,7 +38,7 @@ def _simula_chunk(args: tuple) -> list[dict]:
         for giorno in range(1, n_giorni + 1):
             slots = agente.simulate_day(giorno)
             for slot in slots:
-                if not slot.lat or not slot.lon:
+                if not slot.lat or not slot.lon or not slot.in_movimento:
                     continue
                 esposizioni = check_exposure(
                     agent_id      = slot.agent_id,
@@ -82,7 +82,7 @@ def _run_singlethread(
         for giorno in range(1, n_giorni + 1):
             slots = agente.simulate_day(giorno)
             for slot in slots:
-                if not slot.lat or not slot.lon:
+                if not slot.lat or not slot.lon or not slot.in_movimento:
                     continue
                 ev = check_exposure(
                     slot.agent_id, slot.lat, slot.lon,
