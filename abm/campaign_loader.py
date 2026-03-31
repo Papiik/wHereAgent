@@ -146,11 +146,25 @@ def load_campaign(id_campagna: int, conn_params: dict = None) -> dict:
 
     comuni = list({imp.istat_comune for imp in impianti if imp.istat_comune})
 
+    # Recupera nome campagna e cliente
+    params2 = conn_params or DB_CONFIG
+    conn2 = mysql.connector.connect(**params2)
+    cur2  = conn2.cursor(dictionary=True)
+    cur2.execute(
+        "SELECT campagna, Cliente FROM campagneresult WHERE idCampagna=%s LIMIT 1",
+        (id_campagna,)
+    )
+    meta = cur2.fetchone() or {}
+    cur2.close()
+    conn2.close()
+
     return {
-        "impianti":     impianti,
-        "comuni_istat": comuni,
-        "comuni_info":  comuni_info,
-        "id_campagna":  id_campagna,
+        "impianti":       impianti,
+        "comuni_istat":   comuni,
+        "comuni_info":    comuni_info,
+        "id_campagna":    id_campagna,
+        "nome_campagna":  meta.get("campagna", f"Campagna {id_campagna}"),
+        "cliente":        meta.get("Cliente", ""),
     }
 
 

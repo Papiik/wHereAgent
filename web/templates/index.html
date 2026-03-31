@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>wHere — OOH Simulator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:    #CC0000;
+      --black:  #080808;
+      --dark:   #111111;
+      --card:   #1c1c1c;
+      --card2:  #222222;
+      --border: #383838;
+      --text:   #f4f4f4;
+      --muted:  #aaaaaa;
+      --white:  #ffffff;
+    }
+
+    body {
+      font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+      font-size: 16px;
+      background: var(--black);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--dark);
+      border-bottom: 3px solid var(--red);
+      padding: 0 2.5rem;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      flex-shrink: 0;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 16px;
+    }
+    .logo img {
+      width: 46px; height: 46px; border-radius: 50%;
+      object-fit: contain;
+    }
+    .logo-text { display: flex; flex-direction: column; }
+    .logo-name {
+      font-weight: 700; font-size: 1.55rem; letter-spacing: 0.04em;
+      color: var(--white); line-height: 1;
+    }
+    .logo-name em { color: var(--red); font-style: normal; }
+    .logo-sub {
+      font-size: 0.82rem; font-weight: 400;
+      color: var(--muted); letter-spacing: 0.08em; margin-top: 3px;
+      text-transform: uppercase;
+    }
+    .header-right {
+      font-size: 0.95rem; color: var(--muted);
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+
+    /* ── Layout ── */
+    .container {
+      display: grid;
+      grid-template-columns: 440px 1fr;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 80px);
+    }
+
+    /* ── Sidebar ── */
+    aside {
+      background: var(--dark);
+      border-right: 2px solid var(--border);
+      padding: 2rem 2rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      color: var(--red);
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .field { display: flex; flex-direction: column; gap: 10px; }
+    .field label {
+      font-size: 1rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    select, input[type="number"], input[type="text"] {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      padding: 0.85rem 1.1rem;
+      border-radius: 6px;
+      font-size: 1.05rem;
+      width: 100%;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: var(--red);
+    }
+    select option { background: var(--card); }
+
+    /* Autocomplete campagna */
+    .autocomplete-wrap { position: relative; }
+    .autocomplete-wrap input { padding-right: 2.8rem; }
+    .autocomplete-wrap .clear-btn {
+      position: absolute; right: 12px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none;
+      color: var(--muted); font-size: 1.2rem;
+      cursor: pointer; padding: 4px;
+      display: none;
+      line-height: 1;
+    }
+    .autocomplete-wrap .clear-btn:hover { color: var(--text); }
+    .dropdown-list {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+      background: var(--card2);
+      border: 1.5px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      max-height: 260px;
+      overflow-y: auto;
+      display: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .dropdown-list.open { display: block; }
+    .dropdown-item {
+      padding: 0.85rem 1.1rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      font-size: 1rem;
+      transition: background 0.1s;
+      line-height: 1.3;
+    }
+    .dropdown-item:last-child { border-bottom: none; }
+    .dropdown-item:hover, .dropdown-item.active { background: #2e2e2e; }
+    .dropdown-item .item-sub {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .dropdown-item .item-badge {
+      float: right;
+      background: #2a1212;
+      color: var(--red);
+      font-size: 0.76rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+    }
+
+    /* Info campagna selezionata */
+    .campagna-info-box {
+      display: none;
+      margin-top: 10px;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-left: 4px solid var(--red);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Comuni list */
+    .comuni-list {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .comuni-list label {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 1rem;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    .comuni-list label:last-child { border-bottom: none; }
+    .comuni-list label:hover { background: #272727; }
+    .comuni-list input[type="checkbox"] {
+      accent-color: var(--red);
+      width: 17px; height: 17px;
+      flex-shrink: 0;
+    }
+    .comuni-badge {
+      margin-left: auto;
+      font-size: 0.82rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .comuni-actions {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px;
+    }
+    .comuni-actions span { font-size: 0.9rem; color: var(--muted); }
+    .link-btn {
+      background: none; border: none;
+      color: var(--red); font-size: 0.9rem;
+      cursor: pointer; text-decoration: underline;
+      font-family: inherit;
+    }
+    .link-btn:hover { opacity: 0.8; }
+
+    /* Precisione */
+    .precision-group {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .precision-btn {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      padding: 0.9rem 0.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.15s, background 0.15s;
+      font-family: inherit;
+    }
+    .precision-btn:hover { border-color: #555; background: #242424; }
+    .precision-btn.selected {
+      border-color: var(--red);
+      background: #2a1010;
+    }
+    .precision-btn .pb-label { font-size: 1rem; font-weight: 700; display: block; }
+    .precision-btn .pb-desc  { font-size: 0.8rem; color: var(--muted); margin-top: 4px; display: block; }
+    .precision-btn .pb-time  { font-size: 0.76rem; color: var(--red); margin-top: 3px; display: block; }
+
+    /* Giorni slider */
+    .range-row { display: flex; align-items: center; gap: 14px; }
+    .range-row input[type="range"] {
+      flex: 1; accent-color: var(--red);
+      height: 5px; cursor: pointer;
+    }
+    .range-val {
+      min-width: 56px; text-align: right;
+      font-size: 1.1rem; font-weight: 700; color: var(--white);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 1rem 1.4rem;
+      border-radius: 6px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      width: 100%;
+      font-family: inherit;
+      transition: opacity 0.15s, background 0.15s;
+      letter-spacing: 0.02em;
+    }
+    .btn:hover:not(:disabled) { opacity: 0.85; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-primary { background: var(--red); color: var(--white); }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--text);
+    }
+    .btn-outline:hover:not(:disabled) { border-color: #666; opacity: 1; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* ── Main ── */
+    main {
+      overflow-y: auto;
+      padding: 2.5rem 3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 1.4rem; color: var(--muted); text-align: center;
+      padding: 4rem;
+    }
+    .empty-icon {
+      width: 90px; height: 90px; border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.5rem; opacity: 0.3;
+    }
+    .empty-state h2 { font-size: 1.5rem; color: var(--text); font-weight: 600; }
+    .empty-state p  { font-size: 1.05rem; max-width: 420px; line-height: 1.6; color: var(--muted); }
+
+    /* ── Loader ── */
+    #progress-section { display: none; }
+
+    .loader-wrap {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 6rem 3rem; gap: 0;
+    }
+
+    /* Icona + titolo */
+    .loader-head {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 2.5rem;
+    }
+    .loader-spinner {
+      width: 36px; height: 36px;
+      border: 4px solid var(--border);
+      border-top-color: var(--red);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loader-title {
+      font-size: 1.4rem; font-weight: 700; color: var(--white);
+    }
+
+    /* Barra progresso */
+    .loader-bar-outer {
+      width: 100%; max-width: 540px;
+      background: var(--border);
+      border-radius: 8px; height: 12px;
+      overflow: hidden; margin-bottom: 1rem;
+      position: relative;
+    }
+    .loader-bar-inner {
+      height: 100%; background: var(--red);
+      border-radius: 8px;
+      width: 0%;
+      transition: width 0.7s ease;
+    }
+    /* Shimmer quando è a 0 (ancora nessun dato) */
+    .loader-bar-inner.indeterminate {
+      width: 30% !important;
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      0%   { transform: translateX(-200%); }
+      100% { transform: translateX(500%); }
+    }
+
+    /* Riga info sotto la barra */
+    .loader-meta {
+      width: 100%; max-width: 540px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.95rem;
+    }
+    .loader-msg  { color: var(--muted); flex: 1; }
+    .loader-right { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+    .loader-pct  { font-size: 1rem; font-weight: 700; color: var(--white); }
+    .loader-time {
+      font-size: 1.5rem; font-weight: 700;
+      color: var(--white); font-variant-numeric: tabular-nums;
+      letter-spacing: 0.05em; font-family: 'Courier New', monospace;
+    }
+
+    /* ── Results ── */
+    #results-section { display: none; }
+    .results-header {
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .results-header h2 {
+      font-size: 1.25rem; font-weight: 700;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .results-header h2::before {
+      content: ''; display: inline-block;
+      width: 5px; height: 22px;
+      background: var(--red); border-radius: 2px;
+    }
+    .btn-download {
+      background: var(--red); color: var(--white);
+      padding: 0.85rem 2rem;
+      border: none; border-radius: 6px;
+      font-weight: 700; font-size: 1rem;
+      cursor: pointer; white-space: nowrap;
+      text-decoration: none; display: inline-flex;
+      align-items: center; gap: 8px;
+      font-family: inherit;
+      transition: opacity 0.15s;
+    }
+    .btn-download:hover { opacity: 0.85; }
+
+    /* KPI strip */
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1rem;
+    }
+    .kpi-box {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-left: 5px solid var(--red);
+      border-radius: 6px;
+      padding: 1rem 1.2rem;
+    }
+    .kpi-box .val {
+      font-size: 1.9rem; font-weight: 700;
+      color: var(--white); line-height: 1.1;
+    }
+    .kpi-box .lbl {
+      font-size: 0.82rem; color: var(--muted);
+      margin-top: 6px; text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Table */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 6px;
+      border: 1.5px solid var(--border);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.97rem; }
+    thead tr { background: #161616; }
+    thead th {
+      padding: 0.9rem 1.1rem;
+      text-align: left;
+      font-size: 0.78rem; font-weight: 700;
+      letter-spacing: 0.1em; color: var(--muted);
+      text-transform: uppercase;
+      border-bottom: 1.5px solid var(--border);
+      white-space: nowrap;
+    }
+    thead th.num { text-align: right; }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #202020; }
+    tbody td { padding: 0.75rem 1.1rem; color: var(--text); }
+    tbody td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.95rem;
+    }
+
+    .badge {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 4px; font-size: 0.8rem; font-weight: 700;
+      text-transform: capitalize; white-space: nowrap;
+    }
+    .badge-billboard { background: #2a1a1a; color: #ff8888; }
+    .badge-pensilina  { background: #1a2a1a; color: #88cc88; }
+    .badge-dooh       { background: #1a1a2e; color: #8899ff; }
+    .badge-metro      { background: #2a2a1a; color: #cccc66; }
+
+    /* ── Toast completamento ── */
+    #toast {
+      position: fixed; top: 90px; left: 50%; transform: translateX(-50%);
+      z-index: 999;
+      background: #0f2a0f;
+      border: 2px solid #2a6a2a;
+      border-left: 5px solid #44cc44;
+      border-radius: 8px;
+      padding: 1rem 1.6rem;
+      min-width: 380px; max-width: 600px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      display: none;
+      animation: slideDown 0.35s ease;
+    }
+    #toast.show { display: flex; align-items: flex-start; gap: 14px; }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateX(-50%) translateY(-16px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    .toast-icon { font-size: 1.6rem; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+    .toast-body { flex: 1; }
+    .toast-title {
+      font-size: 1.05rem; font-weight: 700; color: #88ee88;
+      margin-bottom: 6px;
+    }
+    .toast-stats {
+      display: flex; gap: 1.2rem; flex-wrap: wrap;
+      font-size: 0.88rem; color: #aaa;
+    }
+    .toast-stats strong { color: var(--white); }
+    .toast-close {
+      background: none; border: none; color: #666;
+      font-size: 1.2rem; cursor: pointer; padding: 0 4px;
+      line-height: 1; flex-shrink: 0;
+    }
+    .toast-close:hover { color: #aaa; }
+    .toast-link {
+      margin-top: 8px; font-size: 0.88rem;
+      color: #88ee88; cursor: pointer;
+      text-decoration: underline; display: inline-block;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <img src="/static/logo.png" alt="mediaitalia logo"
+         onerror="this.style.display='none'">
+    <div class="logo-text">
+      <span class="logo-name">w<em>Here</em></span>
+      <span class="logo-sub">OOH Simulator</span>
+    </div>
+  </div>
+  <div class="header-right">mediaitalia</div>
+</header>
+
+<div class="container">
+
+  <!-- ── Sidebar ── -->
+  <aside>
+
+    <!-- Cliente -->
+    <div>
+      <div class="section-label">1 — Cliente</div>
+      <div class="field">
+        <label>Seleziona cliente</label>
+        <select id="sel-cliente">
+          <option value="">— scegli cliente —</option>
+          {% for c in clienti %}
+          <option value="{{ c.Cliente }}">
+            {{ c.Cliente }} ({{ c.n_campagne }} campagne)
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Campagna -->
+    <div>
+      <div class="section-label">2 — Campagna</div>
+      <div class="field">
+        <label>Cerca campagna</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="input-campagna"
+                 placeholder="Digita per cercare..."
+                 autocomplete="off" disabled>
+          <button class="clear-btn" id="clear-campagna" title="Cancella">✕</button>
+          <div class="dropdown-list" id="campagna-dropdown"></div>
+        </div>
+        <input type="hidden" id="sel-campagna" value="">
+      </div>
+      <div class="campagna-info-box" id="campagna-info"></div>
+    </div>
+
+    <!-- Comuni -->
+    <div>
+      <div class="section-label">3 — Comuni</div>
+      <div id="comuni-wrap">
+        <div style="color:var(--muted); font-size:1rem; padding: 6px 0;">
+          Seleziona prima una campagna.
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Impostazioni -->
+    <div>
+      <div class="section-label">Impostazioni</div>
+
+      <div class="field" style="margin-bottom:1.4rem;">
+        <label>Precisione simulazione</label>
+        <div class="precision-group">
+          <button class="precision-btn selected" data-scale="0.01">
+            <span class="pb-label">Rapida</span>
+            <span class="pb-desc">~500 agenti</span>
+            <span class="pb-time">~1–2 min/comune</span>
+          </button>
+          <button class="precision-btn" data-scale="0.03">
+            <span class="pb-label">Standard</span>
+            <span class="pb-desc">~1.500 ag.</span>
+            <span class="pb-time">~3–5 min/comune</span>
+          </button>
+          <button class="precision-btn" data-scale="0.05">
+            <span class="pb-label">Alta</span>
+            <span class="pb-desc">~2.500 ag.</span>
+            <span class="pb-time">~5–10 min/comune</span>
+          </button>
+        </div>
+        <input type="hidden" id="scale-val" value="0.01">
+      </div>
+
+      <div class="field" style="margin-bottom:1.4rem;">
+        <label>Giorni da simulare</label>
+        <div class="range-row">
+          <input type="range" id="giorni" min="1" max="30" step="1" value="7">
+          <span class="range-val" id="giorni-val">7 gg</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Costo per impianto (€/sett.) — opzionale</label>
+        <input type="number" id="costo" placeholder="es. 450" min="0" step="10">
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <button class="btn btn-primary" id="btn-run" disabled>
+      ▶ &nbsp;Avvia Simulazione
+    </button>
+    <button class="btn btn-outline" id="btn-reset" style="display:none;">
+      ↺ &nbsp;Nuova simulazione
+    </button>
+
+  </aside>
+
+  <!-- ── Main ── -->
+  <main id="main">
+
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">◎</div>
+      <h2>Seleziona cliente e campagna</h2>
+      <p>Scegli il cliente, la campagna e i parametri dal menu a sinistra, poi avvia la simulazione. I risultati appariranno qui con metriche OTS, Reach, GRP e Copertura per ogni impianto.</p>
+    </div>
+
+    <!-- Loader -->
+    <div id="progress-section">
+      <div class="loader-wrap">
+
+        <div class="loader-head">
+          <div class="loader-spinner"></div>
+          <div class="loader-title">Simulazione in corso…</div>
+        </div>
+
+        <div class="loader-bar-outer">
+          <div class="loader-bar-inner indeterminate" id="loader-bar"></div>
+        </div>
+
+        <div class="loader-meta">
+          <div class="loader-msg" id="progress-msg">Avvio...</div>
+          <div class="loader-right">
+            <span class="loader-pct" id="pct-text">0%</span>
+            <span class="loader-time" id="loader-elapsed">00:00</span>
+          </div>
+        </div>
+        <div id="loader-estimate" style="margin-top:1rem;font-size:0.88rem;
+             color:#555; text-align:center;"></div>
+
+      </div>
+    </div>
+
+    <!-- Toast completamento -->
+    <div id="toast">
+      <div class="toast-icon">✅</div>
+      <div class="toast-body">
+        <div class="toast-title">Simulazione completata!</div>
+        <div class="toast-stats" id="toast-stats"></div>
+        <span class="toast-link" onclick="scrollToResults()">↓ Vai ai risultati</span>
+      </div>
+      <button class="toast-close" onclick="closeToast()">✕</button>
+    </div>
+
+    <!-- Risultati -->
+    <div id="results-section">
+
+      <div class="results-header">
+        <h2>Risultati campagna</h2>
+        <a class="btn-download" id="btn-download" href="#" style="display:none;">
+          ↓ &nbsp;Scarica Report PPT
+        </a>
+      </div>
+
+      <div class="kpi-strip" id="kpi-strip"></div>
+
+      <!-- Mappa Google Maps -->
+      <div id="map-section" style="display:none;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+          <h3 style="font-size:1rem; font-weight:700; color:var(--text);
+                     display:flex; align-items:center; gap:8px;">
+            <span style="display:inline-block;width:4px;height:18px;
+                         background:var(--red);border-radius:2px;"></span>
+            Mappa impianti
+          </h3>
+          <div style="display:flex; gap:14px; font-size:0.82rem; color:var(--muted); align-items:center; flex-wrap:wrap;">
+            <span><span style="color:#CC0000;">●</span> Billboard</span>
+            <span><span style="color:#22aa55;">●</span> Pensilina</span>
+            <span><span style="color:#4488ff;">●</span> DOOH</span>
+            <span><span style="color:#ddaa00;">●</span> Metro</span>
+            <span><span style="color:#cc6600;">●</span> Poster</span>
+            <span style="color:#555;font-size:0.76rem;">Dimensione = OTS</span>
+          </div>
+        </div>
+        <div id="gmap" style="width:100%; height:480px; border-radius:8px;
+                               border:1.5px solid var(--border); overflow:hidden;"></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Impianto</th>
+              <th>Tipo</th>
+              <th>Indirizzo</th>
+              <th class="num">OTS</th>
+              <th class="num">Reach</th>
+              <th class="num">Freq.</th>
+              <th class="num">GRP</th>
+              <th class="num">Cop.%</th>
+              <th class="num" id="th-cpm" style="display:none;">CPM (€)</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  let currentJobId       = null;
+  let pollTimer          = null;
+  let costoPerImp        = 0;
+  let campagneData       = [];
+  let selectedCampagnaId = null;
+  let jobStartTime       = null;
+  let toastTimer         = null;
+
+  const $ = id => document.getElementById(id);
+  const CIRCUMF = 376.8; // 2 * π * 60
+  let elapsedTimer = null;
+
+  // ── Slider giorni ────────────────────────────────────────────────────────────
+  $("giorni").addEventListener("input", function() {
+    $("giorni-val").textContent = this.value + " gg";
+  });
+
+  // ── Precisione buttons ───────────────────────────────────────────────────────
+  document.querySelectorAll(".precision-btn").forEach(btn => {
+    btn.addEventListener("click", function() {
+      document.querySelectorAll(".precision-btn").forEach(b => b.classList.remove("selected"));
+      this.classList.add("selected");
+      $("scale-val").value = this.dataset.scale;
+    });
+  });
+
+  // ── Step 1: cliente → campagne ───────────────────────────────────────────────
+  $("sel-cliente").addEventListener("change", async function() {
+    const cliente = this.value;
+    resetCampagna();
+    if (!cliente) {
+      $("input-campagna").disabled = true;
+      campagneData = [];
+      return;
+    }
+    $("input-campagna").disabled = false;
+    $("input-campagna").placeholder = "Digita per cercare...";
+    $("input-campagna").value = "";
+    const res = await fetch(`/api/campagne?cliente=${encodeURIComponent(cliente)}`);
+    campagneData = await res.json();
+  });
+
+  // ── Step 2: autocomplete campagna ────────────────────────────────────────────
+  $("input-campagna").addEventListener("input", function() {
+    const q = this.value.toLowerCase().trim();
+    $("clear-campagna").style.display = this.value ? "block" : "none";
+    selectedCampagnaId = null;
+    $("sel-campagna").value = "";
+    $("campagna-info").style.display = "none";
+    $("btn-run").disabled = true;
+    if (!q) { closeDropdown(); return; }
+    const filtered = campagneData.filter(c =>
+      c.campagna.toLowerCase().includes(q) || String(c.idCampagna).includes(q)
+    ).slice(0, 30);
+    renderDropdown(filtered);
+  });
+
+  $("input-campagna").addEventListener("focus", function() {
+    const q = this.value.toLowerCase().trim();
+    const list = q
+      ? campagneData.filter(c =>
+          c.campagna.toLowerCase().includes(q) || String(c.idCampagna).includes(q)
+        )
+      : campagneData;
+    renderDropdown(list.slice(0, 30));
+  });
+
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".autocomplete-wrap")) closeDropdown();
+  });
+
+  $("clear-campagna").addEventListener("click", () => {
+    $("input-campagna").value = "";
+    $("clear-campagna").style.display = "none";
+    resetCampagna();
+    closeDropdown();
+  });
+
+  function renderDropdown(items) {
+    const dd = $("campagna-dropdown");
+    if (!items.length) { closeDropdown(); return; }
+    dd.innerHTML = items.map(c => `
+      <div class="dropdown-item" data-id="${c.idCampagna}" data-nome="${c.campagna}"
+           data-imp="${c.n_impianti}" data-comuni="${c.n_comuni}">
+        <span class="item-badge">#${c.idCampagna}</span>
+        ${c.campagna}
+        <div class="item-sub">${c.n_impianti} impianti · ${c.n_comuni} comuni</div>
+      </div>
+    `).join("");
+    dd.querySelectorAll(".dropdown-item").forEach(el => {
+      el.addEventListener("click", () => selectCampagna(el));
+    });
+    dd.classList.add("open");
+  }
+
+  function closeDropdown() { $("campagna-dropdown").classList.remove("open"); }
+
+  async function selectCampagna(el) {
+    const id     = el.dataset.id;
+    const nome   = el.dataset.nome;
+    const imp    = el.dataset.imp;
+    const comuni = el.dataset.comuni;
+
+    $("input-campagna").value = nome;
+    $("clear-campagna").style.display = "block";
+    $("sel-campagna").value = id;
+    selectedCampagnaId = id;
+    closeDropdown();
+
+    $("campagna-info").style.display = "block";
+    $("campagna-info").innerHTML =
+      `<span style="color:var(--muted);">Campagna #${id}</span>` +
+      ` &nbsp;·&nbsp; <strong>${imp}</strong> impianti` +
+      ` &nbsp;·&nbsp; <strong>${comuni}</strong> comuni`;
+
+    await caricaComuni(id);
+    $("btn-run").disabled = false;
+  }
+
+  function resetCampagna() {
+    selectedCampagnaId = null;
+    $("sel-campagna").value = "";
+    $("campagna-info").style.display = "none";
+    $("btn-run").disabled = true;
+    $("comuni-wrap").innerHTML =
+      '<div style="color:var(--muted);font-size:1rem;padding:6px 0;">Seleziona prima una campagna.</div>';
+  }
+
+  // ── Step 3: comuni ───────────────────────────────────────────────────────────
+  async function caricaComuni(idCampagna) {
+    $("comuni-wrap").innerHTML =
+      '<div style="color:var(--muted);font-size:0.95rem;">Caricamento comuni...</div>';
+    const res  = await fetch(`/api/comuni/${idCampagna}`);
+    const data = await res.json();
+    if (!data.length) {
+      $("comuni-wrap").innerHTML =
+        '<div style="color:var(--muted);font-size:0.95rem;">Nessun comune trovato.</div>';
+      return;
+    }
+    $("comuni-wrap").innerHTML = `
+      <div class="comuni-actions">
+        <span>${data.length} comuni disponibili</span>
+        <button class="link-btn" onclick="toggleAll()">Seleziona / Deseleziona tutti</button>
+      </div>
+      <div class="comuni-list" id="comuni-list">
+        ${data.map(c => `
+          <label>
+            <input type="checkbox" name="comune" value="${c.istatComune}">
+            ${c.comune || c.istatComune}
+            <span class="comuni-badge">${c.n_impianti} imp.</span>
+          </label>
+        `).join("")}
+      </div>
+      <div style="color:var(--muted);font-size:0.82rem;margin-top:6px; line-height:1.5;">
+        ✔ Spuntati = simula <strong style="color:var(--text);">solo quelli selezionati</strong><br>
+        ○ Tutti vuoti = simula <strong style="color:var(--text);">tutti i comuni</strong>
+      </div>
+    `;
+  }
+
+  function toggleAll() {
+    const boxes = document.querySelectorAll('input[name="comune"]');
+    const any   = Array.from(boxes).some(b => b.checked);
+    boxes.forEach(b => b.checked = !any);
+  }
+
+  // ── Avvia simulazione ────────────────────────────────────────────────────────
+  $("btn-run").addEventListener("click", async function() {
+    if (!selectedCampagnaId) return;
+    costoPerImp = parseFloat($("costo").value) || 0;
+    const comuniSel = Array.from(
+      document.querySelectorAll('input[name="comune"]:checked')
+    ).map(b => b.value);
+
+    this.disabled = true;
+    $("btn-reset").style.display = "none";
+
+    $("empty-state").style.display      = "none";
+    $("results-section").style.display  = "none";
+    $("progress-section").style.display = "block";
+    setRingProgress(0, "Avvio...");
+
+    const res = await fetch("/api/run", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        campagna: selectedCampagnaId,
+        scale:    parseFloat($("scale-val").value),
+        giorni:   parseInt($("giorni").value),
+        comuni:   comuniSel,
+      }),
+    });
+    const { job_id } = await res.json();
+    currentJobId = job_id;
+    jobStartTime = Date.now();
+    pollTimer    = setInterval(pollStatus, 2000);
+
+    // Stima tempo totale
+    const nComuni  = comuniSel.length || parseInt($("campagna-info").textContent.match(/(\d+) comuni/)?.[1] || "1");
+    const minPerC  = parseFloat($("scale-val").value) <= 0.01 ? 1.5
+                   : parseFloat($("scale-val").value) <= 0.03 ? 4 : 7;
+    const stimaMin = Math.round(nComuni * minPerC);
+    $("loader-estimate").textContent =
+      `Stima: ~${stimaMin} min per ${nComuni} comune${nComuni !== 1 ? "i" : ""} (prima esecuzione può richiedere più tempo per il download mappe)`;
+    // Timer MM:SS live
+    elapsedTimer = setInterval(() => {
+      const s  = Math.round((Date.now() - jobStartTime) / 1000);
+      const mm = String(Math.floor(s / 60)).padStart(2, "0");
+      const ss = String(s % 60).padStart(2, "0");
+      $("loader-elapsed").textContent = mm + ":" + ss;
+    }, 1000);
+  });
+
+  // ── Progress bar ─────────────────────────────────────────────────────────────
+  function setRingProgress(pct, msg) {
+    const bar = $("loader-bar");
+    if (pct > 0) {
+      bar.classList.remove("indeterminate");
+      bar.style.width = pct + "%";
+    }
+    $("pct-text").textContent    = pct + "%";
+    $("progress-msg").textContent = msg || "";
+  }
+
+  // ── Polling ──────────────────────────────────────────────────────────────────
+  async function pollStatus() {
+    if (!currentJobId) return;
+    const res  = await fetch(`/api/status/${currentJobId}`);
+    const data = await res.json();
+
+    setRingProgress(data.progress || 0, data.message || "");
+
+    if (data.status === "completed") {
+      clearInterval(pollTimer);
+      clearInterval(elapsedTimer);
+      setRingProgress(100, "Completato!");
+      setTimeout(() => renderResults(data), 600);
+    } else if (data.status === "completed_shown") {
+      // già gestito
+    } else if (data.status === "error") {
+      clearInterval(pollTimer);
+      clearInterval(elapsedTimer);
+      $("ring-fill").style.stroke = "#884400";
+      $("progress-msg").textContent = "Errore: " + data.message;
+      $("btn-reset").style.display = "";
+      $("btn-run").disabled = false;
+    }
+  }
+
+  // ── Toast ────────────────────────────────────────────────────────────────────
+  function showToast(rows, scale) {
+    const elapsed  = jobStartTime ? Math.round((Date.now() - jobStartTime) / 1000) : 0;
+    const mins     = Math.floor(elapsed / 60);
+    const secs     = elapsed % 60;
+    const timeStr  = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    const nImp     = rows.length;
+    const agenti   = Math.round(parseFloat(scale || 0.01) * 50000);
+
+    $("toast-stats").innerHTML = [
+      `<span>⏱ Tempo: <strong>${timeStr}</strong></span>`,
+      `<span>📍 Impianti: <strong>${nImp}</strong></span>`,
+      `<span>👥 Agenti est.: <strong>~${agenti.toLocaleString("it-IT")}</strong></span>`,
+      `<span>📊 OTS tot.: <strong>${rows.reduce((s,r)=>s+(r.ots_totali||0),0).toLocaleString("it-IT")}</strong></span>`,
+    ].join("");
+
+    const toast = $("toast");
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(closeToast, 12000);
+  }
+
+  function closeToast() {
+    $("toast").classList.remove("show");
+    clearTimeout(toastTimer);
+  }
+
+  function scrollToResults() {
+    closeToast();
+    $("results-section").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ── Render risultati ─────────────────────────────────────────────────────────
+  function renderResults(data) {
+    $("progress-section").style.display = "none";
+    $("results-section").style.display  = "block";
+
+    const rows  = data.table || [];
+    const otsT  = rows.reduce((s, r) => s + (r.ots_totali || 0), 0);
+    const reach = rows.length ? Math.max(...rows.map(r => r.reach_univoco || 0)) : 0;
+    const grp   = rows.length
+      ? (rows.reduce((s, r) => s + (r.grp || 0), 0) / rows.length).toFixed(1)
+      : "0.0";
+    const cop   = rows.length
+      ? (rows.reduce((s, r) => s + (r.copertura_pct || 0), 0) / rows.length).toFixed(2)
+      : "0.00";
+
+    $("kpi-strip").innerHTML = [
+      ["Impianti",      rows.length],
+      ["OTS Totali",    otsT.toLocaleString("it-IT")],
+      ["Reach",         reach.toLocaleString("it-IT")],
+      ["GRP Medio",     grp],
+      ["Copertura %",   cop + "%"],
+    ].map(([l, v]) => `
+      <div class="kpi-box">
+        <div class="val">${v}</div>
+        <div class="lbl">${l}</div>
+      </div>
+    `).join("");
+
+    const hasCosto = costoPerImp > 0;
+    $("th-cpm").style.display = hasCosto ? "" : "none";
+
+    $("results-tbody").innerHTML = rows.map(r => {
+      const cpm = hasCosto && r.reach_univoco
+        ? "€ " + ((costoPerImp / r.reach_univoco) * 1000).toFixed(2)
+        : "";
+      const tipo = (r.tipo || "").toLowerCase();
+      const cls  = tipo.includes("billboard") ? "badge-billboard"
+                 : tipo.includes("pensilina")  ? "badge-pensilina"
+                 : tipo.includes("dooh")        ? "badge-dooh"
+                 : tipo.includes("metro")       ? "badge-metro"
+                 : "badge-billboard";
+      return `<tr>
+        <td style="font-family:monospace;font-size:0.88rem;color:var(--muted);">${r.id}</td>
+        <td><span class="badge ${cls}">${r.tipo}</span></td>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;
+                   white-space:nowrap;font-size:0.92rem;color:var(--muted);">${r.indirizzo}</td>
+        <td class="num">${(r.ots_totali||0).toLocaleString("it-IT")}</td>
+        <td class="num">${(r.reach_univoco||0).toLocaleString("it-IT")}</td>
+        <td class="num">${(r.frequency_media||0).toFixed(1)}</td>
+        <td class="num">${(r.grp||0).toFixed(1)}</td>
+        <td class="num">${(r.copertura_pct||0).toFixed(2)}%</td>
+        ${hasCosto ? `<td class="num">${cpm}</td>` : ""}
+      </tr>`;
+    }).join("");
+
+    $("btn-download").style.display = "";
+    $("btn-download").href = `/api/download/${currentJobId}`;
+    $("btn-reset").style.display = "";
+    $("btn-run").disabled = false;
+
+    // Mappa
+    buildMap(rows);
+
+    // Notifica e scroll
+    const scale = $("scale-val").value;
+    showToast(rows, scale);
+    setTimeout(() => $("results-section").scrollIntoView({ behavior: "smooth", block: "start" }), 200);
+  }
+
+  // ── Reset ────────────────────────────────────────────────────────────────────
+  $("btn-reset").addEventListener("click", function() {
+    currentJobId = null;
+    clearInterval(pollTimer);
+    $("results-section").style.display  = "none";
+    $("progress-section").style.display = "none";
+    $("empty-state").style.display      = "";
+    $("results-tbody").innerHTML = "";
+    $("kpi-strip").innerHTML     = "";
+    $("btn-download").style.display = "none";
+    this.style.display = "none";
+    $("btn-run").disabled = !selectedCampagnaId;
+  });
+</script>
+<script>
+  // Google Maps init (chiamata da callback)
+  let gmap = null;
+  let gmapMarkers = [];
+
+  window.initMap = function() { /* pronto, la mappa si inizializza con i dati */ };
+
+  const TIPO_COLORS = {
+    billboard: "#CC0000",   // rosso mediaitalia
+    pensilina: "#22aa55",   // verde
+    dooh:      "#4488ff",   // blu
+    metro:     "#ddaa00",   // giallo/oro
+    poster:    "#cc6600",   // arancio
+    other:     "#888888",   // grigio
+  };
+
+  function tipoColor(tipo) {
+    const t = (tipo || "").toLowerCase();
+    for (const [key, col] of Object.entries(TIPO_COLORS)) {
+      if (t.includes(key)) return col;
+    }
+    return TIPO_COLORS.other;
+  }
+
+  function svgMarker(color, size = 14) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size*2}" height="${size*2+6}" viewBox="0 0 ${size*2} ${size*2+6}">
+      <circle cx="${size}" cy="${size}" r="${size-2}" fill="${color}" stroke="white" stroke-width="2"/>
+      <line x1="${size}" y1="${size*2-2}" x2="${size}" y2="${size*2+5}" stroke="${color}" stroke-width="2"/>
+    </svg>`;
+    return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+  }
+
+  function buildMap(rows) {
+    if (!rows || !rows.length) return;
+    const valid = rows.filter(r => r.lat && r.lon && r.lat !== 0 && r.lon !== 0);
+    if (!valid.length) return;
+
+    $("map-section").style.display = "";
+
+    // Centro sulla media dei punti
+    const avgLat = valid.reduce((s, r) => s + r.lat, 0) / valid.length;
+    const avgLon = valid.reduce((s, r) => s + r.lon, 0) / valid.length;
+
+    if (!gmap) {
+      gmap = new google.maps.Map($("gmap"), {
+        center: { lat: avgLat, lng: avgLon },
+        zoom: 13,
+        mapTypeControlOptions: { mapTypeIds: ["roadmap", "styled_map"] },
+        streetViewControl: false,
+        fullscreenControl: true,
+        zoomControl: true,
+        zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
+      });
+
+      // Stile custom
+      const styledMapType = new google.maps.StyledMapType([
+        { stylers: [{ saturation: -100 }, { gamma: 1 }] },
+        { elementType: "labels.text.stroke", stylers: [{ visibility: "off" }] },
+        { featureType: "poi.business", elementType: "labels.text", stylers: [{ visibility: "off" }] },
+        { featureType: "poi.business", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+        { featureType: "poi.place_of_worship", elementType: "labels.text", stylers: [{ visibility: "off" }] },
+        { featureType: "transit.line", elementType: "labels.icon", stylers: [{ visibility: "on" }] },
+        { featureType: "poi.place_of_worship", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+        { featureType: "road", elementType: "geometry", stylers: [{ visibility: "simplified" }] },
+        { featureType: "water", stylers: [{ visibility: "on" }, { saturation: 50 }, { gamma: 0 }, { hue: "#50a5d1" }] },
+        { featureType: "administrative.neighborhood", elementType: "labels.text.fill", stylers: [{ color: "#333333" }] },
+        { featureType: "road.local", elementType: "labels.text", stylers: [{ weight: 0.5 }, { color: "#333333" }] },
+        { featureType: "transit.station", elementType: "labels.icon", stylers: [{ gamma: 1 }, { saturation: 50 }] },
+      ], { name: "Styled Map" });
+
+      gmap.mapTypes.set("styled_map", styledMapType);
+      gmap.setMapTypeId("styled_map");
+    } else {
+      // Reset markers esistenti
+      gmapMarkers.forEach(m => m.setMap(null));
+      gmapMarkers = [];
+      gmap.setCenter({ lat: avgLat, lng: avgLon });
+    }
+
+    const infoWindow = new google.maps.InfoWindow();
+    const maxOts = Math.max(...valid.map(r => r.ots_totali || 0)) || 1;
+
+    valid.forEach(r => {
+      const color = tipoColor(r.tipo);
+      // Dimensione marker proporzionale all'OTS (min 10, max 20)
+      const size = 10 + Math.round((r.ots_totali / maxOts) * 10);
+
+      const marker = new google.maps.Marker({
+        position: { lat: r.lat, lng: r.lon },
+        map: gmap,
+        icon: {
+          url: svgMarker(color, size),
+          anchor: new google.maps.Point(size, size * 2 + 5),
+        },
+        title: r.indirizzo,
+      });
+
+      marker.addListener("click", () => {
+        infoWindow.setContent(`
+          <div style="font-family:Calibri,sans-serif;min-width:200px;padding:4px;">
+            <div style="font-weight:700;font-size:13px;margin-bottom:6px;
+                        border-left:3px solid ${color};padding-left:6px;">
+              ${r.tipo.toUpperCase()}
+            </div>
+            <div style="font-size:12px;color:#555;margin-bottom:8px;">${r.indirizzo}</div>
+            <table style="font-size:12px;border-collapse:collapse;width:100%;">
+              <tr><td style="color:#888;padding:2px 8px 2px 0;">OTS</td>
+                  <td style="font-weight:700;">${(r.ots_totali||0).toLocaleString("it-IT")}</td></tr>
+              <tr><td style="color:#888;padding:2px 8px 2px 0;">Reach</td>
+                  <td style="font-weight:700;">${(r.reach_univoco||0).toLocaleString("it-IT")}</td></tr>
+              <tr><td style="color:#888;padding:2px 8px 2px 0;">Freq.</td>
+                  <td style="font-weight:700;">${(r.frequency_media||0).toFixed(1)}</td></tr>
+              <tr><td style="color:#888;padding:2px 8px 2px 0;">GRP</td>
+                  <td style="font-weight:700;">${(r.grp||0).toFixed(1)}</td></tr>
+              <tr><td style="color:#888;padding:2px 8px 2px 0;">Copertura</td>
+                  <td style="font-weight:700;">${(r.copertura_pct||0).toFixed(2)}%</td></tr>
+            </table>
+          </div>
+        `);
+        infoWindow.open(gmap, marker);
+      });
+
+      gmapMarkers.push(marker);
+    });
+
+    // Adatta zoom ai marker
+    const bounds = new google.maps.LatLngBounds();
+    valid.forEach(r => bounds.extend({ lat: r.lat, lng: r.lon }));
+    gmap.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+  }
+</script>
+<script async defer
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCrtZcSQeOch6RiUJrL7SV1ZC7G8Ike5F0&callback=initMap">
+</script>
+</body>
+</html>

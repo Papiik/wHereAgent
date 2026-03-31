@@ -78,79 +78,91 @@ class CityMap:
 
 
 # ── Cache ─────────────────────────────────────────────────────────────────────
-def _cache_path(codice_istat: str) -> Path:
+def _cache_path(codice_istat: str, dist_m: int = 3000) -> Path:
     OSM_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    return OSM_CACHE_DIR / f"{codice_istat}.pkl"
+    return OSM_CACHE_DIR / f"{codice_istat}_{dist_m}.pkl"
 
 
-def _salva_cache(city_map: CityMap):
-    p = _cache_path(city_map.codice_istat)
+def _salva_cache(city_map: CityMap, dist_m: int):
+    p = _cache_path(city_map.codice_istat, dist_m)
     with open(p, "wb") as f:
         pickle.dump(city_map, f)
     log.info(f"OSM cache salvata: {p.name}")
 
 
-def _carica_cache(codice_istat: str) -> CityMap | None:
-    p = _cache_path(codice_istat)
+def _carica_cache(codice_istat: str, dist_m: int) -> CityMap | None:
+    p = _cache_path(codice_istat, dist_m)
     if not p.exists():
         return None
-    log.info(f"OSM {codice_istat}: carico da cache...")
+    log.info(f"OSM {codice_istat}: carico da cache ({dist_m}m)...")
     with open(p, "rb") as f:
         return pickle.load(f)
 
 
 # ── Download OSM ──────────────────────────────────────────────────────────────
 def _download_city(nome: str, lat: float, lon: float,
-                   codice_istat: str, dist_m: int = 8000) -> CityMap:
+                   codice_istat: str, dist_m: int = 3000) -> CityMap:
     """
     Scarica il grafo OSM entro dist_m metri dal centroide del comune.
-    dist_m default 8000m copre la maggior parte dei comuni medi italiani.
+    Usa solo la rete 'drive' (più compatta) per entrambe walk e drive,
+    così il download è 3-5x più veloce rispetto a scaricare due reti.
     """
     log.info(f"Download OSM per {nome} ({codice_istat}), raggio={dist_m}m...")
 
-    # Rete pedonale (include bici e piedi)
-    g_walk = ox.graph_from_point(
-        (lat, lon),
-        dist=dist_m,
-        network_type="walk",
-        simplify=True,
-    )
-
-    # Rete veicolare (auto e bus)
-    g_drive = ox.graph_from_point(
+    g = ox.graph_from_point(
         (lat, lon),
         dist=dist_m,
         network_type="drive",
         simplify=True,
+        retain_all=False,
     )
 
-    # Calcola bbox dal grafo walk (più esteso)
-    nodes_walk = ox.graph_to_gdfs(g_walk, edges=False)
+    nodes_gdf = ox.graph_to_gdfs(g, edges=False)
     bbox = (
-        float(nodes_walk.geometry.y.min()),
-        float(nodes_walk.geometry.x.min()),
-        float(nodes_walk.geometry.y.max()),
-        float(nodes_walk.geometry.x.max()),
+        float(nodes_gdf.geometry.y.min()),
+        float(nodes_gdf.geometry.x.min()),
+        float(nodes_gdf.geometry.y.max()),
+        float(nodes_gdf.geometry.x.max()),
     )
 
-    log.info(f"  Nodi walk={g_walk.number_of_nodes()}, drive={g_drive.number_of_nodes()}")
+    log.info(f"  Nodi grafo={g.number_of_nodes()}, archi={g.number_of_edges()}")
 
     return CityMap(
         nome         = nome,
         codice_istat = codice_istat,
-        grafo_drive  = g_drive,
-        grafo_walk   = g_walk,
+        grafo_drive  = g,
+        grafo_walk   = g,   # stesso grafo per entrambe le modalità
         bbox         = bbox,
     )
 
 
 # ── Funzione principale ───────────────────────────────────────────────────────
+def calc_dist_m(lat_center: float, lon_center: float,
+                impianti: list, buffer_m: int = 800, max_m: int = 2000) -> int:
+    """
+    Calcola il raggio OSM ottimale in base allo spread degli impianti nel comune.
+    Evita di scaricare mappe enormi per comuni grandi come Roma o Milano.
+    """
+    import math
+    if not impianti:
+        return 3000
+    max_dist = 0.0
+    for imp in impianti:
+        dlat = (imp.lat - lat_center) * 111320
+        dlon = (imp.lon - lon_center) * 111320 * math.cos(math.radians(lat_center))
+        d = math.sqrt(dlat ** 2 + dlon ** 2)
+        if d > max_dist:
+            max_dist = d
+    radius = int(max_dist) + buffer_m
+    return max(min(radius, max_m), 1200)   # min 1.2km, max 2km
+
+
 def load_city_map(
     codice_istat: str,
     nome: str,
     lat: float,
     lon: float,
-    dist_m: int = 8000,
+    dist_m: int = 3000,
     forza_download: bool = False,
 ) -> CityMap:
     """
@@ -161,13 +173,13 @@ def load_city_map(
         codice_istat  : codice ISTAT del comune
         nome          : nome del comune (per log)
         lat, lon      : coordinate centroide
-        dist_m        : raggio in metri dal centroide (default 8km)
+        dist_m        : raggio in metri dal centroide (default 3km; usa calc_dist_m per adattivo)
         forza_download: ignora cache e riscarica
     """
     if not forza_download:
-        cached = _carica_cache(codice_istat)
+        cached = _carica_cache(codice_istat, dist_m)
         if cached:
-            log.info(f"OSM {nome}: da cache (nodi={cached.grafo_walk.number_of_nodes()})")
+            log.info(f"OSM {nome}: da cache {dist_m}m (nodi={cached.grafo_walk.number_of_nodes()})")
             return cached
 
     if lat == 0.0 or lon == 0.0:
@@ -175,7 +187,7 @@ def load_city_map(
                          f"Popola COMUNI_LOOKUP in istat_loader.py o fornisci lat/lon.")
 
     city_map = _download_city(nome, lat, lon, codice_istat, dist_m)
-    _salva_cache(city_map)
+    _salva_cache(city_map, dist_m)
     return city_map
 
 

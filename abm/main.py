@@ -19,7 +19,7 @@ from .config import (
 )
 from .campaign_loader import load_campaign
 from .istat_loader import load_istat_data, arricchisci_coordinate
-from .city_mapper import load_city_map
+from .city_mapper import load_city_map, calc_dist_m
 from .population_builder import build_population
 from .simulation_engine import run_simulation
 from .db_writer import (
@@ -123,8 +123,9 @@ def main():
         run_id = None
         try:
             # 4a. Mappa OSM
+            dist_m   = calc_dist_m(lat, lon, impianti_comune)
             city_map = load_city_map(
-                codice_istat, dati.nome_comune, lat, lon, dist_m=8000
+                codice_istat, dati.nome_comune, lat, lon, dist_m=dist_m
             )
 
             # 4b. Popolazione agenti
