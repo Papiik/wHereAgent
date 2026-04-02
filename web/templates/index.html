@@ -415,6 +415,60 @@
     }
     .btn-download:hover { opacity: 0.85; }
 
+    /* Cache badge */
+    .cache-badge {
+      font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 20px;
+      vertical-align: middle;
+    }
+    .cache-badge.from-cache { background: #d4f5e0; color: #1a7a3a; }
+    .cache-badge.fresh      { background: #dbeafe; color: #1e40af; }
+
+    /* Analisi agenti */
+    .analisi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .analisi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .analisi-card .ac-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .analisi-card .ac-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: var(--text);
+      padding: 2px 0;
+    }
+    .analisi-card .ac-row span:first-child { color: var(--muted); }
+    .analisi-card .ac-row .diff-ok  { color: #22aa55; font-weight: 600; }
+    .analisi-card .ac-row .diff-warn { color: #ddaa00; font-weight: 600; }
+    .analisi-card .ac-row .diff-bad  { color: var(--red); font-weight: 600; }
+    .analisi-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+    }
+    .analisi-badge.ok   { background: #d4f5e0; color: #1a7a3a; }
+    .analisi-badge.warn { background: #fff3cd; color: #856404; }
+    .analisi-badge.bad  { background: #fde8e8; color: #b91c1c; }
+
     /* KPI strip */
     .kpi-strip {
       display: grid;
@@ -619,6 +673,28 @@
       </div>
 
       <div class="field" style="margin-bottom:1.4rem;">
+        <label>Profili agenti</label>
+        <div class="precision-group">
+          <button class="precision-btn mode-btn" data-mode="1">
+            <span class="pb-label">ISTAT</span>
+            <span class="pb-desc">Statistico</span>
+            <span class="pb-time">gratuito</span>
+          </button>
+          <button class="precision-btn mode-btn" data-mode="0">
+            <span class="pb-label">Claude AI</span>
+            <span class="pb-desc">LLM</span>
+            <span class="pb-time">~5 cent/campagna</span>
+          </button>
+          <button class="precision-btn mode-btn selected" data-mode="2">
+            <span class="pb-label">Confronto</span>
+            <span class="pb-desc">ISTAT + AI</span>
+            <span class="pb-time">+ analisi</span>
+          </button>
+        </div>
+        <input type="hidden" id="mode-val" value="2">
+      </div>
+
+      <div class="field" style="margin-bottom:1.4rem;">
         <label>Giorni da simulare</label>
         <div class="range-row">
           <input type="range" id="giorni" min="1" max="30" step="1" value="7">
@@ -693,13 +769,24 @@
     <div id="results-section">
 
       <div class="results-header">
-        <h2>Risultati campagna</h2>
+        <h2>Risultati campagna <span id="cache-badge" style="display:none;"></span></h2>
         <a class="btn-download" id="btn-download" href="#" style="display:none;">
           ↓ &nbsp;Scarica Report PPT
         </a>
       </div>
 
       <div class="kpi-strip" id="kpi-strip"></div>
+
+      <!-- Analisi agenti -->
+      <div id="analisi-section" style="display:none; margin-bottom:1.5rem;">
+        <h3 style="font-size:1rem; font-weight:700; color:var(--text);
+                   display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+          <span style="display:inline-block;width:4px;height:18px;
+                       background:var(--red);border-radius:2px;"></span>
+          Analisi profili agenti — ISTAT vs Claude AI
+        </h3>
+        <div id="analisi-body"></div>
+      </div>
 
       <!-- Mappa Google Maps -->
       <div id="map-section" style="display:none;">
@@ -768,9 +855,17 @@
   // ── Precisione buttons ───────────────────────────────────────────────────────
   document.querySelectorAll(".precision-btn").forEach(btn => {
     btn.addEventListener("click", function() {
-      document.querySelectorAll(".precision-btn").forEach(b => b.classList.remove("selected"));
+      document.querySelectorAll(".precision-btn:not(.mode-btn)").forEach(b => b.classList.remove("selected"));
       this.classList.add("selected");
       $("scale-val").value = this.dataset.scale;
+    });
+  });
+
+  document.querySelectorAll(".mode-btn").forEach(btn => {
+    btn.addEventListener("click", function() {
+      document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("selected"));
+      this.classList.add("selected");
+      $("mode-val").value = this.dataset.mode;
     });
   });
 
@@ -937,6 +1032,7 @@
         campagna: selectedCampagnaId,
         scale:    parseFloat($("scale-val").value),
         giorni:   parseInt($("giorni").value),
+        mode:     parseInt($("mode-val").value),
         comuni:   comuniSel,
       }),
     });
@@ -1029,6 +1125,77 @@
     $("results-section").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  // ── Render analisi agenti ────────────────────────────────────────────────────
+  function renderAnalisi(analisi, mode) {
+    const sec  = $("analisi-section");
+    const body = $("analisi-body");
+    if (!analisi || mode !== 2) { sec.style.display = "none"; return; }
+
+    const s = analisi._sommario || {};
+    const errPct = (s.errore_medio_pct || 0).toFixed(1);
+    const giudizio = s.giudizio || "N/D";
+    const badgeClass = giudizio.includes("EQUIV") ? "ok" : giudizio.includes("SIMILI") ? "warn" : "bad";
+
+    const NUMERI = ["ora_sveglia", "ora_partenza", "ora_rientro", "eta"];
+    const LABEL  = { ora_sveglia: "Ora sveglia", ora_partenza: "Ora partenza",
+                     ora_rientro: "Ora rientro", eta: "Età media" };
+
+    let html = `<span class="analisi-badge ${badgeClass}">${giudizio}</span>
+      <span style="font-size:0.82rem;color:var(--muted);margin-left:10px;">
+        Errore medio: <strong>${errPct}%</strong> &nbsp;·&nbsp;
+        Attributi significativi: <strong>${s.n_attributi_significativi || 0}</strong>
+      </span>
+      <div class="analisi-grid" style="margin-top:10px;">`;
+
+    // Attributi numerici
+    for (const col of NUMERI) {
+      const v = analisi[col]; if (!v) continue;
+      const d = v.diff_pct.toFixed(1);
+      const cls = v.diff_pct < 5 ? "diff-ok" : v.diff_pct < 15 ? "diff-warn" : "diff-bad";
+      html += `<div class="analisi-card">
+        <div class="ac-label">${LABEL[col]}</div>
+        <div class="ac-row"><span>ISTAT</span><span>${v.python_media.toFixed(2)}</span></div>
+        <div class="ac-row"><span>Claude</span><span>${v.claude_media.toFixed(2)}</span></div>
+        <div class="ac-row"><span>Diff %</span><span class="${cls}">${d}%${v.significativo ? " ✱" : ""}</span></div>
+      </div>`;
+    }
+
+    // Mezzo di trasporto
+    const m = analisi.mezzo_preferito;
+    if (m) {
+      const mezzi = [...new Set([...Object.keys(m.python || {}), ...Object.keys(m.claude || {})])].sort();
+      html += `<div class="analisi-card">
+        <div class="ac-label">Mezzo trasporto</div>`;
+      for (const k of mezzi) {
+        const py = (m.python?.[k] || 0).toFixed(1);
+        const cl = (m.claude?.[k] || 0).toFixed(1);
+        html += `<div class="ac-row"><span>${k}</span>
+          <span style="gap:8px;display:flex;">
+            <span style="color:var(--muted);">${py}%</span>
+            <span>/ ${cl}%</span>
+          </span></div>`;
+      }
+      html += `</div>`;
+    }
+
+    // Booleani
+    for (const col of ["ha_pranzo_fuori", "ha_attivita_serale"]) {
+      const v = analisi[col]; if (!v) continue;
+      const cls = v.diff_pct < 5 ? "diff-ok" : v.diff_pct < 15 ? "diff-warn" : "diff-bad";
+      const lbl = col === "ha_pranzo_fuori" ? "Pranzo fuori" : "Attività serale";
+      html += `<div class="analisi-card">
+        <div class="ac-label">${lbl}</div>
+        <div class="ac-row"><span>ISTAT</span><span>${v.python_pct}%</span></div>
+        <div class="ac-row"><span>Claude</span><span>${v.claude_pct}%</span></div>
+        <div class="ac-row"><span>Diff %</span><span class="${cls}">${v.diff_pct}%</span></div>
+      </div>`;
+    }
+
+    html += `</div>`;
+    body.innerHTML = html;
+    sec.style.display = "block";
+  }
+
   // ── Render risultati ─────────────────────────────────────────────────────────
   function renderResults(data) {
     $("progress-section").style.display = "none";
@@ -1088,6 +1255,19 @@
     $("btn-download").href = `/api/download/${currentJobId}`;
     $("btn-reset").style.display = "";
     $("btn-run").disabled = false;
+
+    // Badge cache
+    const badge = $("cache-badge");
+    if (data.da_cache) {
+      const ts = data.cache_timestamp ? ` · ${data.cache_timestamp.slice(0,16)}` : "";
+      badge.innerHTML = `<span class="cache-badge from-cache">💾 Da cache DB${ts}</span>`;
+    } else {
+      badge.innerHTML = `<span class="cache-badge fresh">✓ Nuova simulazione</span>`;
+    }
+    badge.style.display = "";
+
+    // Analisi agenti
+    renderAnalisi(data.analisi, data.mode);
 
     // Mappa
     buildMap(rows);
@@ -1211,23 +1391,23 @@
 
       marker.addListener("click", () => {
         infoWindow.setContent(`
-          <div style="font-family:Calibri,sans-serif;min-width:200px;padding:4px;">
-            <div style="font-weight:700;font-size:13px;margin-bottom:6px;
+          <div style="font-family:Calibri,sans-serif;min-width:200px;padding:4px;color:#111;">
+            <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#111;
                         border-left:3px solid ${color};padding-left:6px;">
               ${r.tipo.toUpperCase()}
             </div>
             <div style="font-size:12px;color:#555;margin-bottom:8px;">${r.indirizzo}</div>
             <table style="font-size:12px;border-collapse:collapse;width:100%;">
               <tr><td style="color:#888;padding:2px 8px 2px 0;">OTS</td>
-                  <td style="font-weight:700;">${(r.ots_totali||0).toLocaleString("it-IT")}</td></tr>
+                  <td style="font-weight:700;color:#111;">${(r.ots_totali||0).toLocaleString("it-IT")}</td></tr>
               <tr><td style="color:#888;padding:2px 8px 2px 0;">Reach</td>
-                  <td style="font-weight:700;">${(r.reach_univoco||0).toLocaleString("it-IT")}</td></tr>
+                  <td style="font-weight:700;color:#111;">${(r.reach_univoco||0).toLocaleString("it-IT")}</td></tr>
               <tr><td style="color:#888;padding:2px 8px 2px 0;">Freq.</td>
-                  <td style="font-weight:700;">${(r.frequency_media||0).toFixed(1)}</td></tr>
+                  <td style="font-weight:700;color:#111;">${(r.frequency_media||0).toFixed(1)}</td></tr>
               <tr><td style="color:#888;padding:2px 8px 2px 0;">GRP</td>
-                  <td style="font-weight:700;">${(r.grp||0).toFixed(1)}</td></tr>
+                  <td style="font-weight:700;color:#111;">${(r.grp||0).toFixed(1)}</td></tr>
               <tr><td style="color:#888;padding:2px 8px 2px 0;">Copertura</td>
-                  <td style="font-weight:700;">${(r.copertura_pct||0).toFixed(2)}%</td></tr>
+                  <td style="font-weight:700;color:#111;">${(r.copertura_pct||0).toFixed(2)}%</td></tr>
             </table>
           </div>
         `);

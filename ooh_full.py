@@ -1,6 +1,6 @@
 """
 ╔══════════════════════════════════════════════════════════════╗
-║         OOH CAMPAIGN MODELER — Multi-Agent System           ║
+║         OOH CAMPAIGN MODELER — Multi-Agent System            ║
 ║         Versione completa con integrazione MySQL             ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  Dipendenze:                                                 ║
@@ -196,6 +196,19 @@ TIPO_MAP = {
     "schermo led":        "dooh",
     "video wall":         "dooh",
     "display digitale":   "dooh",
+
+    # ── DOOH / Digitale ──────────────────────────────────────────
+
+    "ARREDO":             "Arredo urbano",
+    "POSTER":             "Poster",
+    "COMUNALI":          "comunali",
+    "DIGITAL":            "DIGITALI",
+    "MEDI":             "MEDI",
+    "SPECIALE":    "SPECIALE",
+    "METRO":       "METRO",
+    "DINAMICA":  "DINAMICA",
+
+
 }
 
 

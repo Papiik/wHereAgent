@@ -14,6 +14,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from flask import Flask, render_template, request, jsonify, send_file
 import mysql.connector
 
+import hashlib
+import time
+
 from abm.config import DB_CONFIG, SIM_WORKERS
 from abm.campaign_loader import load_campaign
 from abm.istat_loader import load_istat_data, arricchisci_coordinate
@@ -22,6 +25,7 @@ from abm.population_builder import build_population
 from abm.simulation_engine import run_simulation
 from abm.exposure_collector import aggrega_per_impianto
 from abm.ppt_generator import genera_ppt
+from abm.db_writer import crea_tabelle, apri_run, chiudi_run, segna_errore, salva_risultati
 
 app = Flask(__name__)
 log = logging.getLogger(__name__)
@@ -126,12 +130,111 @@ def _get_comuni_campagna(id_campagna: int) -> list[dict]:
         return []
 
 
+# ── Cache DB helpers ──────────────────────────────────────────────────────────
+def _comuni_hash(comuni: list[str]) -> str:
+    """Hash riproducibile della lista comuni (ordine insensitive)."""
+    return hashlib.md5(",".join(sorted(comuni)).encode()).hexdigest()[:16]
+
+
+def _cerca_cache(id_campagna: int, comuni: list[str], giorni: int, mode: int) -> dict | None:
+    """
+    Cerca un run completato con gli stessi parametri in abm_runs + abm_impianto_metrics.
+    Ritorna dict {risultati, run_timestamp} oppure None.
+    """
+    h = _comuni_hash(comuni)
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cur  = conn.cursor(dictionary=True)
+        # Trova il run più recente con questi parametri
+        cur.execute("""
+            SELECT id, run_timestamp
+            FROM abm_runs
+            WHERE id_campagna = %s
+              AND n_giorni    = %s
+              AND profilo_mode = %s
+              AND status      = 'done'
+              AND JSON_UNQUOTE(JSON_EXTRACT(config_json, '$.comuni_hash')) = %s
+            ORDER BY run_timestamp DESC
+            LIMIT 1
+        """, (id_campagna, giorni, mode, h))
+        run = cur.fetchone()
+        if not run:
+            cur.close(); conn.close()
+            return None
+
+        run_id = run["id"]
+        run_ts = str(run["run_timestamp"])
+
+        # Leggi le metriche per impianto
+        cur.execute("""
+            SELECT impianto_id, ots_totali, reach_univoco,
+                   frequency_media, grp, copertura_pct
+            FROM abm_impianto_metrics
+            WHERE run_id = %s
+        """, (run_id,))
+        rows = cur.fetchall()
+        cur.close(); conn.close()
+
+        if not rows:
+            return None
+
+        risultati = {
+            r["impianto_id"]: {
+                "ots_totali":      r["ots_totali"],
+                "reach_univoco":   r["reach_univoco"],
+                "frequency_media": r["frequency_media"],
+                "grp":             r["grp"],
+                "copertura_pct":   r["copertura_pct"],
+            }
+            for r in rows
+        }
+        return {"risultati": risultati, "run_timestamp": run_ts, "run_id": run_id}
+
+    except Exception as e:
+        log.warning(f"Cache lookup fallita: {e}")
+        return None
+
+
+def _salva_cache(id_campagna: int, comuni: list[str], giorni: int, mode: int,
+                 nome_campagna: str, tutti_risultati: dict, tutti_eventi: list,
+                 tutti_agenti: list, impianti: list, popolazione_totale: int,
+                 durata_sec: float):
+    """Salva i risultati simulazione su MySQL per uso futuro."""
+    h = _comuni_hash(comuni)
+    config_snap = {"comuni_hash": h, "comuni": comuni, "giorni": giorni, "mode": mode}
+    try:
+        crea_tabelle()
+        run_id = apri_run(
+            id_campagna=id_campagna,
+            id_comune=",".join(comuni[:3]) + ("..." if len(comuni) > 3 else ""),
+            nome_comune=nome_campagna,
+            n_agenti=len(tutti_agenti),
+            n_giorni=giorni,
+            n_impianti=len(impianti),
+            profilo_mode=mode,
+            config_snapshot=config_snap,
+        )
+        salva_risultati(
+            run_id=run_id,
+            id_campagna=id_campagna,
+            eventi=tutti_eventi,
+            agenti=tutti_agenti,
+            impianti=impianti,
+            popolazione=popolazione_totale,
+        )
+        chiudi_run(run_id, durata_sec=round(durata_sec, 1), esposizioni=len(tutti_eventi))
+        log.info(f"Risultati salvati in cache (run_id={run_id})")
+    except Exception as e:
+        log.warning(f"Salvataggio cache fallito: {e}")
+
+
 # ── Simulation worker ─────────────────────────────────────────────────────────
 def _run_job(job_id: str, params: dict):
     try:
         id_campagna = int(params["campagna"])
-        scale       = float(params.get("scale", 0.01))
+        scale       = float(params.get("scale") or 0.01)
         giorni      = int(params.get("giorni", 7))
+        mode        = int(params.get("mode", 2))
         workers     = SIM_WORKERS
         comuni_sel  = params.get("comuni", [])   # lista istat, [] = tutti
 
@@ -147,6 +250,28 @@ def _run_job(job_id: str, params: dict):
             if comuni_sel else camp["comuni_istat"]
         )
 
+        impianti_dict = {imp.id: imp for imp in camp["impianti"]}
+
+        # ── Controlla cache DB ───────────────────────────────────────────────
+        _set_job(job_id, progress=8, message="Controllo cache risultati...")
+        cache = _cerca_cache(id_campagna, comuni_da_simulare, giorni, mode)
+        if cache:
+            _set_job(job_id,
+                     status="completed",
+                     progress=100,
+                     message="Risultati caricati dalla cache.",
+                     result={
+                         "campagna":      camp,
+                         "risultati":     cache["risultati"],
+                         "impianti":      impianti_dict,
+                         "analisi":       None,
+                         "mode":          mode,
+                         "da_cache":      True,
+                         "cache_timestamp": cache["run_timestamp"],
+                     })
+            return
+
+        # ── Simulazione ──────────────────────────────────────────────────────
         _set_job(job_id, progress=10, message="Caricamento dati ISTAT...")
         dati_istat = load_istat_data(
             comuni_da_simulare, imp_per_comune, camp["comuni_info"]
@@ -154,7 +279,12 @@ def _run_job(job_id: str, params: dict):
         arricchisci_coordinate(dati_istat, imp_per_comune)
 
         tutti_risultati: dict[str, dict] = {}
+        tutti_eventi:    list            = []
+        tutti_agenti:    list            = []
+        popolazione_tot: int             = 0
+        analisi_globale: dict | None     = None
         n = len(comuni_da_simulare)
+        t_start = time.time()
 
         for i, istat in enumerate(comuni_da_simulare):
             dati = dati_istat.get(istat)
@@ -173,7 +303,9 @@ def _run_job(job_id: str, params: dict):
 
             dist_m   = calc_dist_m(lat, lon, impianti_comune)
             city_map = load_city_map(istat, dati.nome_comune, lat, lon, dist_m=dist_m)
-            agenti, _ = build_population(dati, city_map, mode=1)
+            agenti, analisi_comune = build_population(dati, city_map, mode=mode)
+            if analisi_comune and not analisi_globale:
+                analisi_globale = analisi_comune
             eventi, _ = run_simulation(
                 agenti, city_map, impianti_comune,
                 n_giorni=giorni, n_workers=workers,
@@ -182,10 +314,26 @@ def _run_job(job_id: str, params: dict):
                 eventi, len(agenti), dati.popolazione_totale
             )
             tutti_risultati.update(metriche)
+            tutti_eventi.extend(eventi)
+            tutti_agenti.extend(agenti)
+            popolazione_tot += dati.popolazione_totale
+
+        _set_job(job_id, progress=92, message="Salvataggio risultati su DB...")
+        _salva_cache(
+            id_campagna=id_campagna,
+            comuni=comuni_da_simulare,
+            giorni=giorni,
+            mode=mode,
+            nome_campagna=camp.get("nome_campagna", ""),
+            tutti_risultati=tutti_risultati,
+            tutti_eventi=tutti_eventi,
+            tutti_agenti=tutti_agenti,
+            impianti=camp["impianti"],
+            popolazione_totale=popolazione_tot,
+            durata_sec=time.time() - t_start,
+        )
 
         _set_job(job_id, progress=95, message="Preparazione risultati...")
-
-        impianti_dict = {imp.id: imp for imp in camp["impianti"]}
 
         _set_job(job_id,
                  status="completed",
@@ -195,6 +343,9 @@ def _run_job(job_id: str, params: dict):
                      "campagna":  camp,
                      "risultati": tutti_risultati,
                      "impianti":  impianti_dict,
+                     "analisi":   analisi_globale,
+                     "mode":      mode,
+                     "da_cache":  False,
                  })
 
     except Exception as e:
@@ -255,6 +406,10 @@ def api_status(job_id: str):
     if job["status"] == "completed" and job["result"]:
         risultati = job["result"]["risultati"]
         impianti  = job["result"]["impianti"]
+        out["da_cache"]        = job["result"].get("da_cache", False)
+        out["cache_timestamp"] = job["result"].get("cache_timestamp", "")
+        out["mode"]            = job["result"].get("mode", 1)
+        out["analisi"]         = job["result"].get("analisi")
         out["table"] = [
             {
                 "id":        imp_id,

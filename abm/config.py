@@ -64,18 +64,23 @@ SLOT_PER_GIORNO = (ORE_GIORNATA * 60) // SLOT_MINUTI   # 96 slot
 
 # ── Tipi impianto OOH riconosciuti ───────────────────────────────────────────
 TIPO_MAP: dict[str, str] = {
-    "billboard":    "billboard",
-    "manifesto":    "billboard",
-    "poster":       "billboard",
-    "pensilina":    "pensilina",
-    "fermata":      "pensilina",
-    "bus shelter":  "pensilina",
+    "arredo":       "arredo",
+    "comunal":      "comunali",
+    "digital":      "digital",
+    "dooh":         "digital",
+    "led":          "digital",
+    "dinamica":     "dinamica",
+    "dynamic":      "dinamica",
+    "medi":         "medi",
+    "medio":        "medi",
+    "poster":       "poster",
+    "manifesto":    "poster",
+    "billboard":    "poster",
+    "speciale":     "speciale",
+    "special":      "speciale",
     "metro":        "metro",
     "metropolitana":"metro",
     "stazione":     "metro",
-    "dooh":         "dooh",
-    "digitale":     "dooh",
-    "led":          "dooh",
 }
 
 # ── Percorsi cache ────────────────────────────────────────────────────────────

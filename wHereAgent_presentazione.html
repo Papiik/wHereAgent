@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wHereAgent — Presentazione</title>
+<style>
+  :root {
+    --red: #CC0000;
+    --dark: #111111;
+    --mid: #333333;
+    --light: #F5F5F5;
+    --accent: #E8E8E8;
+    --white: #FFFFFF;
+    --code-bg: #1E1E1E;
+    --code-fg: #D4D4D4;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+    background: var(--light);
+    color: var(--mid);
+    line-height: 1.7;
+  }
+
+  /* ─── COVER ─── */
+  .cover {
+    background: var(--dark);
+    color: var(--white);
+    padding: 90px 80px 80px;
+    min-height: 340px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 6px;
+    background: var(--red);
+  }
+  .cover .brand {
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 32px;
+  }
+  .cover h1 {
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+  .cover h1 span { color: var(--red); }
+  .cover .subtitle {
+    font-size: 18px;
+    color: #AAA;
+    max-width: 600px;
+  }
+  .cover .tagline {
+    margin-top: 40px;
+    font-size: 14px;
+    color: #666;
+    border-top: 1px solid #333;
+    padding-top: 20px;
+    display: flex;
+    gap: 40px;
+  }
+  .cover .tagline strong { color: #AAA; }
+
+  /* ─── SECTION ─── */
+  .section {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 60px 40px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--red);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  h2 {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 20px;
+    line-height: 1.2;
+  }
+
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--dark);
+    margin: 36px 0 10px;
+    padding-left: 14px;
+    border-left: 3px solid var(--red);
+  }
+
+  p { margin-bottom: 16px; font-size: 16px; }
+
+  /* ─── DIVIDER ─── */
+  .divider {
+    border: none;
+    border-top: 1px solid #DDD;
+    margin: 0;
+  }
+
+  /* ─── HIGHLIGHT BOX ─── */
+  .highlight {
+    background: var(--dark);
+    color: var(--white);
+    padding: 32px 40px;
+    border-left: 5px solid var(--red);
+    border-radius: 4px;
+    margin: 28px 0;
+    font-size: 17px;
+    line-height: 1.8;
+  }
+  .highlight strong { color: var(--red); }
+
+  /* ─── KPI GRID ─── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin: 28px 0;
+  }
+  .kpi-card {
+    background: var(--white);
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    padding: 24px 20px;
+    text-align: center;
+  }
+  .kpi-card .value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--red);
+    display: block;
+  }
+  .kpi-card .label {
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #888;
+    margin-top: 6px;
+  }
+
+  /* ─── FLOW DIAGRAM ─── */
+  .flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+    margin: 32px 0;
+    background: var(--white);
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .flow-step {
+    flex: 1;
+    min-width: 110px;
+    padding: 22px 16px;
+    text-align: center;
+    border-right: 1px solid #E8E8E8;
+    position: relative;
+  }
+  .flow-step:last-child { border-right: none; }
+  .flow-step .num {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--red);
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .flow-step .name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dark);
+    line-height: 1.3;
+  }
+  .flow-step .tech {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+  }
+
+  /* ─── CODE BLOCK ─── */
+  .code-block {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 24px 28px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 20px 0;
+  }
+  .code-block .kw { color: #569CD6; }
+  .code-block .str { color: #CE9178; }
+  .code-block .cm { color: #6A9955; }
+  .code-block .num { color: #B5CEA8; }
+  .code-block .fn { color: #DCDCAA; }
+
+  /* ─── TABLE ─── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 20px 0;
+    background: var(--white);
+  }
+  th {
+    background: var(--dark);
+    color: var(--white);
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  td {
+    padding: 11px 16px;
+    border-bottom: 1px solid #EEE;
+    color: var(--mid);
+  }
+  tr:nth-child(even) td { background: var(--light); }
+  td.mono { font-family: 'Consolas', monospace; font-size: 12px; color: var(--red); }
+
+  /* ─── FORMULA BOX ─── */
+  .formula {
+    background: #FFF8F8;
+    border: 1px solid #F0C0C0;
+    border-left: 4px solid var(--red);
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    font-family: 'Consolas', monospace;
+    font-size: 14px;
+    color: var(--dark);
+    line-height: 2;
+  }
+
+  /* ─── AGENT CARD ─── */
+  .agent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .agent-card {
+    background: var(--white);
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    padding: 20px;
+  }
+  .agent-card .tipo {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--dark);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--red);
+  }
+  .agent-card ul { list-style: none; }
+  .agent-card li {
+    font-size: 13px;
+    color: #555;
+    padding: 3px 0;
+  }
+  .agent-card li::before { content: '→ '; color: var(--red); }
+
+  /* ─── CALLOUT ─── */
+  .callout {
+    background: var(--white);
+    border: 1px solid #E0E0E0;
+    border-top: 3px solid var(--red);
+    border-radius: 4px;
+    padding: 24px 28px;
+    margin: 24px 0;
+  }
+  .callout .callout-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 10px;
+  }
+
+  /* ─── ALTERNATING SECTIONS ─── */
+  .section-dark {
+    background: var(--dark);
+    color: var(--white);
+    padding: 60px 0;
+  }
+  .section-dark h2 { color: var(--white); }
+  .section-dark h3 { color: var(--white); }
+  .section-dark p { color: #BBB; }
+  .section-dark .section { padding: 0 40px; }
+
+  /* ─── FOOTER ─── */
+  .footer {
+    background: #0A0A0A;
+    color: #555;
+    text-align: center;
+    padding: 40px;
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+  .footer strong { color: #888; }
+
+  @media print {
+    .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .highlight { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     COVER
+════════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="brand">▶ mediaitalia · Tecnologia Proprietaria</div>
+  <h1>w<span>Here</span>Agent</h1>
+  <p class="subtitle">
+    Il primo simulatore comportamentale agentico per la misurazione
+    dell'esposizione OOH in Italia.
+  </p>
+  <div class="tagline">
+    <div><strong>Tecnologia</strong><br>Agent-Based Modeling</div>
+    <div><strong>Dati</strong><br>OpenStreetMap + ISTAT</div>
+    <div><strong>AI</strong><br>Claude Haiku · Anthropic</div>
+    <div><strong>Versione</strong><br>1.0 · 2025</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     1. IL PROBLEMA
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Il Contesto</div>
+  <h2>Il problema della misurazione OOH</h2>
+
+  <p>
+    L'Out-of-Home advertising — cartelloni, pensiline, impianti digitali — è uno dei media più
+    antichi e tuttora più efficaci. Eppure la sua misurazione resta storicamente approssimativa:
+    quante persone passano davanti a un cartellone? Con quale frequenza? Con quale mezzo?
+    In quale fascia oraria?
+  </p>
+  <p>
+    I sistemi tradizionali si basano su <strong>conteggi manuali</strong>, <strong>sondaggi campionari</strong>
+    o <strong>modelli statistici aggregati</strong> che non tengono conto della reale mobilità
+    delle persone nel territorio. Il risultato sono GRP e Reach calcolati con margini di errore
+    enormi, spesso non confrontabili tra campagne diverse.
+  </p>
+
+  <div class="highlight">
+    <strong>wHereAgent</strong> ribalta questo paradigma: invece di stimare il pubblico
+    dall'esterno, <em>simula direttamente i cittadini</em> — come si spostano, dove vanno,
+    quando passano vicino a un impianto — e misura l'esposizione impianto per impianto,
+    persona per persona.
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     2. LA SOLUZIONE
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">La Soluzione</div>
+  <h2>Un simulatore di città, non un modello</h2>
+
+  <p>
+    wHereAgent è costruito su una tecnica scientifica chiamata <strong>Agent-Based Modeling (ABM)</strong>:
+    invece di lavorare con medie e percentuali aggregate, si creano migliaia di agenti virtuali —
+    persone digitali — che abitano, si svegliano, si spostano e tornano a casa, proprio come
+    i cittadini reali.
+  </p>
+  <p>
+    Ogni agente ha un <strong>profilo individuale</strong> — studente, lavoratore, pensionato —
+    un <strong>mezzo di trasporto preferito</strong>, degli <strong>orari abituali</strong>
+    e una <strong>routine quotidiana</strong>. Si muove sulla rete stradale reale del comune
+    (scaricata da OpenStreetMap) e il sistema registra ogni volta che passa abbastanza vicino
+    a un impianto pubblicitario da poterlo vedere.
+  </p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <span class="value">5.000</span>
+      <span class="label">Agenti max per comune</span>
+    </div>
+    <div class="kpi-card">
+      <span class="value">14</span>
+      <span class="label">Giorni simulati</span>
+    </div>
+    <div class="kpi-card">
+      <span class="value">96</span>
+      <span class="label">Slot da 15 min / giorno</span>
+    </div>
+    <div class="kpi-card">
+      <span class="value">6,7M</span>
+      <span class="label">Slot analizzati per comune</span>
+    </div>
+    <div class="kpi-card">
+      <span class="value">4</span>
+      <span class="label">Mezzi di trasporto</span>
+    </div>
+    <div class="kpi-card">
+      <span class="value">5</span>
+      <span class="label">Profili sociologici</span>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     3. COME FUNZIONA — PIPELINE
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Architettura</div>
+  <h2>La pipeline in 6 passi</h2>
+
+  <div class="flow">
+    <div class="flow-step">
+      <span class="num">01</span>
+      <div class="name">Carica Campagna</div>
+      <div class="tech">MySQL · campagneresult</div>
+    </div>
+    <div class="flow-step">
+      <span class="num">02</span>
+      <div class="name">Mappa il Territorio</div>
+      <div class="tech">OpenStreetMap · osmnx</div>
+    </div>
+    <div class="flow-step">
+      <span class="num">03</span>
+      <div class="name">Genera Popolazione</div>
+      <div class="tech">ISTAT · Claude Haiku</div>
+    </div>
+    <div class="flow-step">
+      <span class="num">04</span>
+      <div class="name">Simula Movimenti</div>
+      <div class="tech">ABM · Dijkstra</div>
+    </div>
+    <div class="flow-step">
+      <span class="num">05</span>
+      <div class="name">Rileva Esposizioni</div>
+      <div class="tech">R-tree · Haversine</div>
+    </div>
+    <div class="flow-step">
+      <span class="num">06</span>
+      <div class="name">Aggrega e Salva</div>
+      <div class="tech">MySQL · PPT Report</div>
+    </div>
+  </div>
+
+  <h3>Passo 1 — Carica la campagna</h3>
+  <p>
+    Il sistema legge dal database tutti gli impianti della campagna: coordinate GPS,
+    tipo (billboard, digitale, pensilina, metro), formato e comune di appartenenza.
+    Ogni impianto ha un <strong>raggio di visibilità adattivo</strong> in base al mezzo
+    con cui ci si avvicina: un automobilista vede un billboard a 80 m, un pedone lo vede
+    a 30 m.
+  </p>
+
+  <h3>Passo 2 — Costruisce la mappa del comune</h3>
+  <p>
+    Per ogni comune presente in campagna, il sistema scarica automaticamente la
+    <strong>rete stradale reale</strong> da OpenStreetMap (ogni vicolo, ogni incrocio,
+    ogni nodo della città), la converte in un grafo matematico e la mette in cache
+    per riutilizzarla. Il raggio di download si adatta dinamicamente allo spread degli
+    impianti sul territorio.
+  </p>
+
+  <h3>Passo 3 — Genera la popolazione virtuale</h3>
+  <p>
+    Basandosi sui dati ISTAT del comune (popolazione totale, distribuzione per età,
+    tassi di occupazione), il sistema genera migliaia di agenti virtuali ognuno con
+    un profilo unico. Questo è il cuore intelligente del sistema.
+  </p>
+
+  <h3>Passo 4 — Simula i movimenti</h3>
+  <p>
+    Per 14 giorni consecutivi, ogni agente percorre la rete stradale reale del comune
+    usando l'algoritmo di <strong>percorso minimo (Dijkstra)</strong>. Il sistema traccia
+    la posizione GPS di ogni agente ogni 15 minuti, interpolando la posizione esatta
+    lungo il percorso.
+  </p>
+
+  <h3>Passo 5 — Rileva le esposizioni</h3>
+  <p>
+    Ad ogni passo, per ogni agente in movimento, il sistema verifica in modo efficientissimo
+    quali impianti si trovano nel raggio di visibilità. Di notte (21:00–07:00) solo gli
+    impianti illuminati o digitali sono visibili.
+  </p>
+
+  <h3>Passo 6 — Aggrega e produce i risultati</h3>
+  <p>
+    Tutte le esposizioni vengono aggregate in metriche standard di mercato: OTS, Reach,
+    Frequency e GRP per ogni impianto, con breakdown per fascia oraria e mezzo di trasporto.
+    I risultati vengono salvati su MySQL e possono generare automaticamente un report PPT.
+  </p>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     4. L'ALGORITMO — CUORE DEL SISTEMA
+════════════════════════════════════════════════════════════════ -->
+<div class="section-dark">
+<div class="section">
+  <div class="section-label" style="color:#FF4444;">L'Algoritmo</div>
+  <h2>Cosa rende wHereAgent davvero speciale</h2>
+
+  <p>
+    La parte più innovativa del sistema non è la simulazione in sé — è il modo in cui
+    vengono costruiti i profili degli agenti e come viene rilevata l'esposizione
+    con precisione millimetrica senza sacrificare le prestazioni.
+  </p>
+
+  <h3>Profili AI-powered con Claude Haiku</h3>
+  <p>
+    Il sistema può operare in <strong>tre modalità</strong> per la generazione dei profili:
+  </p>
+
+  <div class="kpi-grid" style="margin:24px 0;">
+    <div class="callout" style="background:#1A1A1A;border-color:#444;border-top-color:var(--red);">
+      <div class="callout-title">Modalità Python</div>
+      <p style="color:#AAA;font-size:14px;">
+        Campionamento statistico puro basato su distribuzioni ISTAT reali:
+        probabilità di mezzo per tipo sociologico, orari con distribuzione
+        gaussiana, attività serali. Veloce, deterministico, gratuito.
+      </p>
+    </div>
+    <div class="callout" style="background:#1A1A1A;border-color:#444;border-top-color:#FF4444;">
+      <div class="callout-title" style="color:#FF4444;">Modalità Claude Haiku</div>
+      <p style="color:#AAA;font-size:14px;">
+        Per ogni archetipo (tipo × fascia età × mezzo × sesso), Claude genera
+        una routine giornaliera realistica e motivata. Gli agenti risultanti
+        hanno comportamenti più sfumati e contestualizzati. I profili sono
+        cachati per tipo, quindi 1 sola chiamata API per archetipo.
+      </p>
+    </div>
+    <div class="callout" style="background:#1A1A1A;border-color:#444;border-top-color:#FFAA00;">
+      <div class="callout-title" style="color:#FFAA00;">Modalità Confronto</div>
+      <p style="color:#AAA;font-size:14px;">
+        Genera entrambe le popolazioni e le confronta statisticamente:
+        t-test sugli attributi numerici, differenza % sulle distribuzioni
+        categoriche. Se l'errore medio è &lt;5% i due metodi sono
+        <em>equivalenti</em> — validazione automatica del modello.
+      </p>
+    </div>
+  </div>
+
+  <h3>Il routing sulla rete stradale reale</h3>
+  <p style="color:#BBB;">
+    Ogni agente non si muove "in linea d'aria" — percorre la rete stradale vera di OpenStreetMap.
+    Il sistema usa l'algoritmo di <strong>Dijkstra</strong> (minimizzazione della distanza in metri)
+    per calcolare il percorso ottimale tra casa e destinazione. I percorsi vengono cachati per
+    evitare ricalcoli tra giorni diversi.
+  </p>
+
+  <div class="code-block">
+<span class="cm"># Routine giornaliera di un agente (pseudocodice)</span>
+<span class="kw">def</span> <span class="fn">simulate_day</span>(agente, giorno):
+    <span class="cm"># Fase 1: a casa fino all'ora di partenza</span>
+    slots += fermo(nodo_casa, <span class="num">00:00</span> → ora_partenza)
+
+    <span class="cm"># Fase 2: percorso verso destinazione (Dijkstra sul grafo OSM)</span>
+    percorso = shortest_path(grafo, nodo_casa, nodo_dest)
+    durata   = lunghezza_m / velocita_kmh[mezzo] * <span class="num">60</span>
+    slots += transito(percorso, ora_partenza, durata)  <span class="cm"># ← qui si verifica esposizione</span>
+
+    <span class="cm"># Fase 3: alla destinazione</span>
+    slots += fermo(nodo_dest, ora_arrivo → ora_rientro)
+
+    <span class="cm"># Fase 4: percorso di ritorno</span>
+    slots += transito(percorso[::-1], ora_rientro, durata)
+
+    <span class="cm"># Fase 5: attività serale (probabilità dipende dal tipo agente)</span>
+    <span class="kw">if</span> agente.ha_attivita_serale:
+        slots += uscita_serale(nodo_casuale, durata=<span class="num">3</span>-<span class="num">9</span> slot)
+
+    <span class="kw">return</span> slots
+  </div>
+
+  <h3>Rilevamento esposizioni ultra-efficiente</h3>
+  <p style="color:#BBB;">
+    Con 5.000 agenti × 96 slot/giorno × 14 giorni = <strong>6,7 milioni di posizioni da verificare</strong>
+    contro decine di impianti, la forza bruta sarebbe impraticabile. Il sistema usa due tecniche
+    combinate:
+  </p>
+
+  <div class="callout" style="background:#1A1A1A;border-color:#333;border-top-color:#FF4444;">
+    <div class="callout-title" style="color:#FF4444;">1 · Indice Spaziale R-tree — O(log n)</div>
+    <p style="color:#AAA;font-size:14px;margin-bottom:0;">
+      Tutti gli impianti vengono indicizzati in una struttura R-tree. Per ogni posizione
+      di un agente, invece di confrontarla con tutti gli impianti, si fa una
+      <em>query di intersezione sul bounding box</em>: solo gli impianti nelle vicinanze
+      diventano candidati. Questo riduce il numero di confronti da O(n) a O(log n).
+    </p>
+  </div>
+
+  <div class="callout" style="background:#1A1A1A;border-color:#333;border-top-color:#FF4444;">
+    <div class="callout-title" style="color:#FF4444;">2 · Formula di Haversine — distanza geodetica esatta</div>
+    <p style="color:#AAA;font-size:14px;margin-bottom:0;">
+      Per ogni candidato, la distanza reale viene calcolata con la formula di Haversine
+      che tiene conto della curvatura della Terra. Nessuna approssimazione piatta.
+    </p>
+  </div>
+
+  <div class="code-block">
+<span class="cm"># Formula di Haversine (distanza in metri tra due punti GPS)</span>
+a = sin²(Δφ/2) + cos(φ₁) · cos(φ₂) · sin²(Δλ/2)
+distanza = R · 2 · arcsin(√a)     <span class="cm"># R = 6.371 km, raggio terrestre</span>
+
+<span class="cm"># L'agente "vede" l'impianto se:</span>
+<span class="kw">if</span> distanza ≤ raggio_per[mezzo] <span class="kw">and</span> <span class="kw">not</span> (notturno <span class="kw">and not</span> illuminato):
+    registra_esposizione(agente, impianto, ora, mezzo)
+  </div>
+
+  <h3>Parallelismo multi-processo</h3>
+  <p style="color:#BBB;">
+    La simulazione di ogni comune viene parallelizzata su più CPU: gli agenti vengono
+    divisi in chunk e ogni worker elabora il proprio gruppo in modo completamente indipendente.
+    I risultati parziali vengono poi aggregati. In caso di errore, il sistema scende
+    automaticamente in modalità single-thread senza interrompere l'esecuzione.
+  </p>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     5. I PROFILI DEGLI AGENTI
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Sociologia Computazionale</div>
+  <h2>I profili degli agenti virtuali</h2>
+
+  <p>
+    Ogni agente è un individuo con una storia. I profili sono calibrati su dati ISTAT
+    reali (Mobilità Urbana 2022) e riflettono la distribuzione demografica effettiva
+    del comune simulato.
+  </p>
+
+  <div class="agent-grid">
+    <div class="agent-card">
+      <div class="tipo">Studente</div>
+      <ul>
+        <li>Età 14–24</li>
+        <li>Bus 40%, piedi 30%</li>
+        <li>Partenza 07:00–08:00</li>
+        <li>Rientro 13:00–16:00</li>
+        <li>Alta serale (55%)</li>
+      </ul>
+    </div>
+    <div class="agent-card">
+      <div class="tipo">Lavoratore</div>
+      <ul>
+        <li>Età 25–54</li>
+        <li>Auto 45%, bus 30%</li>
+        <li>Partenza 07:30–09:00</li>
+        <li>Rientro 17:30–19:30</li>
+        <li>Serale 40%</li>
+      </ul>
+    </div>
+    <div class="agent-card">
+      <div class="tipo">Pensionato</div>
+      <ul>
+        <li>Età 65–85</li>
+        <li>Piedi 45%, bus 30%</li>
+        <li>Partenza 09:00–10:30</li>
+        <li>Rientro 12:00–14:00</li>
+        <li>Serale basso (20%)</li>
+      </ul>
+    </div>
+    <div class="agent-card">
+      <div class="tipo">Genitore</div>
+      <ul>
+        <li>Età 30–50</li>
+        <li>Auto 50%, bus 25%</li>
+        <li>Uscite multiple</li>
+        <li>Orari scuola (08/16)</li>
+        <li>Serale 35%</li>
+      </ul>
+    </div>
+    <div class="agent-card">
+      <div class="tipo">Disoccupato</div>
+      <ul>
+        <li>Età 18–45</li>
+        <li>Piedi 35%, bus 35%</li>
+        <li>Orari variabili</li>
+        <li>Alta mobilità</li>
+        <li>Serale 50%</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">Raggio di visibilità adattivo per mezzo</div>
+    <p>
+      Non tutti vedono un impianto dalla stessa distanza. Il sistema modella
+      questa differenza fisicamente:
+    </p>
+    <table>
+      <tr>
+        <th>Mezzo</th>
+        <th>Raggio visibilità</th>
+        <th>Ragionamento</th>
+      </tr>
+      <tr>
+        <td>Pedone (piedi)</td>
+        <td class="mono">30 m</td>
+        <td>Cammina lento, notazione ravvicinata</td>
+      </tr>
+      <tr>
+        <td>Bici</td>
+        <td class="mono">40 m</td>
+        <td>Campo visivo simile al pedone, leggera velocità</td>
+      </tr>
+      <tr>
+        <td>Bus / trasporto pubblico</td>
+        <td class="mono">50 m</td>
+        <td>Vista laterale dai finestrini, seduto</td>
+      </tr>
+      <tr>
+        <td>Auto</td>
+        <td class="mono">80 m</td>
+        <td>Visibilità alta per cartelloni stradali e billboard</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     6. LE METRICHE
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Output</div>
+  <h2>Le metriche prodotte</h2>
+
+  <p>
+    wHereAgent produce le stesse metriche standard del mercato OOH, ma calcolate
+    dal basso — dalla simulazione individuale — invece che stimate dall'alto con modelli aggregati.
+  </p>
+
+  <table>
+    <tr>
+      <th>Metrica</th>
+      <th>Significato</th>
+      <th>Come viene calcolata</th>
+    </tr>
+    <tr>
+      <td><strong>OTS</strong><br><small>Opportunity To See</small></td>
+      <td>Numero totale di opportunità di visione di un impianto</td>
+      <td>Conteggio di tutti gli eventi di esposizione nella simulazione</td>
+    </tr>
+    <tr>
+      <td><strong>Reach</strong></td>
+      <td>Numero di persone diverse che hanno visto l'impianto almeno una volta</td>
+      <td>Agenti unici esposti, scalati alla popolazione reale del comune</td>
+    </tr>
+    <tr>
+      <td><strong>Frequency</strong></td>
+      <td>Quante volte in media una persona ha visto l'impianto</td>
+      <td>OTS ÷ Reach</td>
+    </tr>
+    <tr>
+      <td><strong>GRP</strong><br><small>Gross Rating Point</small></td>
+      <td>Pressione pubblicitaria complessiva dell'impianto</td>
+      <td>Copertura% × Frequency</td>
+    </tr>
+    <tr>
+      <td><strong>Copertura%</strong></td>
+      <td>Percentuale della popolazione raggiunta</td>
+      <td>(Reach ÷ Popolazione) × 100</td>
+    </tr>
+  </table>
+
+  <div class="formula">
+OTS       = Σ eventi_esposizione(impianto)<br>
+Reach     = |{agenti unici}| × (popolazione_reale / n_agenti_simulati)<br>
+Frequency = OTS / Reach<br>
+Coverage% = (Reach / Popolazione) × 100<br>
+GRP       = Coverage% × Frequency
+  </div>
+
+  <h3>Breakdown aggiuntivi disponibili</h3>
+  <p>
+    Oltre alle metriche aggregate, il sistema produce breakdowns dettagliati che
+    i sistemi tradizionali non possono fornire:
+  </p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <span class="value" style="font-size:22px;">Reach / Ora</span>
+      <span class="label">per fascia oraria (0–23)</span>
+    </div>
+    <div class="kpi-card">
+      <span class="value" style="font-size:22px;">Reach / Mezzo</span>
+      <span class="label">piedi, bici, bus, auto</span>
+    </div>
+    <div class="kpi-card">
+      <span class="value" style="font-size:22px;">Freq. individuale</span>
+      <span class="label">per ogni coppia agente-impianto</span>
+    </div>
+    <div class="kpi-card">
+      <span class="value" style="font-size:22px;">Top impianti</span>
+      <span class="label">ranking per reach, OTS, GRP</span>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     7. TECNOLOGIE
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Stack Tecnologico</div>
+  <h2>Tecnologie e dati</h2>
+
+  <table>
+    <tr>
+      <th>Componente</th>
+      <th>Tecnologia</th>
+      <th>Ruolo</th>
+    </tr>
+    <tr>
+      <td>Linguaggio</td>
+      <td class="mono">Python 3.11+</td>
+      <td>Engine principale della simulazione</td>
+    </tr>
+    <tr>
+      <td>Rete stradale</td>
+      <td class="mono">OpenStreetMap + osmnx</td>
+      <td>Grafi stradali reali dei comuni italiani</td>
+    </tr>
+    <tr>
+      <td>Routing</td>
+      <td class="mono">NetworkX (Dijkstra)</td>
+      <td>Calcolo percorsi minimi su grafo stradale</td>
+    </tr>
+    <tr>
+      <td>Indice spaziale</td>
+      <td class="mono">rtree (R-tree)</td>
+      <td>Query O(log n) per rilevamento esposizioni</td>
+    </tr>
+    <tr>
+      <td>AI generativa</td>
+      <td class="mono">Claude Haiku (Anthropic)</td>
+      <td>Generazione routine comportamentali realistiche</td>
+    </tr>
+    <tr>
+      <td>Dati demografici</td>
+      <td class="mono">ISTAT open data</td>
+      <td>Popolazione, età, occupazione per comune</td>
+    </tr>
+    <tr>
+      <td>Database</td>
+      <td class="mono">MySQL</td>
+      <td>Input campagne, output metriche</td>
+    </tr>
+    <tr>
+      <td>Parallelismo</td>
+      <td class="mono">ProcessPoolExecutor</td>
+      <td>Simulazione multi-core per performance</td>
+    </tr>
+    <tr>
+      <td>Report</td>
+      <td class="mono">python-pptx</td>
+      <td>Generazione automatica presentazioni PowerPoint</td>
+    </tr>
+    <tr>
+      <td>Calcolo numerico</td>
+      <td class="mono">NumPy</td>
+      <td>Campionamento distribuzioni, seed riproducibile</td>
+    </tr>
+  </table>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     8. ARCHITETTURA MODULI
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Architettura Software</div>
+  <h2>I moduli del sistema</h2>
+
+  <table>
+    <tr>
+      <th>Modulo</th>
+      <th>Responsabilità</th>
+    </tr>
+    <tr>
+      <td class="mono">main.py</td>
+      <td>Orchestrazione pipeline, CLI, loop per comune</td>
+    </tr>
+    <tr>
+      <td class="mono">campaign_loader.py</td>
+      <td>Lettura impianti e comuni da MySQL (tabella campagneresult)</td>
+    </tr>
+    <tr>
+      <td class="mono">istat_loader.py</td>
+      <td>Dati demografici ISTAT con cache su disco e fallback multipli</td>
+    </tr>
+    <tr>
+      <td class="mono">city_mapper.py</td>
+      <td>Download e cache grafo stradale OSM, calcolo raggi adattivi</td>
+    </tr>
+    <tr>
+      <td class="mono">population_builder.py</td>
+      <td>Generazione agenti (Python puro / Claude Haiku / confronto)</td>
+    </tr>
+    <tr>
+      <td class="mono">agent.py</td>
+      <td>Simulazione giornata singolo agente, interpolazione percorso</td>
+    </tr>
+    <tr>
+      <td class="mono">simulation_engine.py</td>
+      <td>Orchestrazione parallela, chunking, fallback single-thread</td>
+    </tr>
+    <tr>
+      <td class="mono">exposure_collector.py</td>
+      <td>R-tree index, Haversine, rilevamento e aggregazione esposizioni</td>
+    </tr>
+    <tr>
+      <td class="mono">db_writer.py</td>
+      <td>DDL tabelle ABM, batch insert metriche su MySQL</td>
+    </tr>
+    <tr>
+      <td class="mono">db_loader.py</td>
+      <td>Caricamento alternativo impianti e zone da campagneresult</td>
+    </tr>
+    <tr>
+      <td class="mono">ppt_generator.py</td>
+      <td>Report PPT branded con KPI, tabelle metriche e layout mediaitalia</td>
+    </tr>
+    <tr>
+      <td class="mono">config.py</td>
+      <td>Tutti i parametri centralizzati: DB, API, simulazione, raggi</td>
+    </tr>
+  </table>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     9. VANTAGGI COMPETITIVI
+════════════════════════════════════════════════════════════════ -->
+<div class="section-dark">
+<div class="section">
+  <div class="section-label" style="color:#FF4444;">Perché è diverso</div>
+  <h2>I vantaggi di wHereAgent</h2>
+
+  <div class="agent-grid">
+    <div class="callout" style="background:#1A1A1A;border-color:#333;border-top-color:#FF4444;">
+      <div class="callout-title" style="color:#FF4444;">Granularità impianto per impianto</div>
+      <p style="color:#AAA;font-size:14px;margin-bottom:0;">
+        Non si stima il "traffico del comune" — si misura quante persone passano
+        vicino a <em>quel</em> cartellone specifico, in <em>quella</em> via, a
+        <em>quell'ora</em>.
+      </p>
+    </div>
+    <div class="callout" style="background:#1A1A1A;border-color:#333;border-top-color:#FF4444;">
+      <div class="callout-title" style="color:#FF4444;">Routing su rete reale</div>
+      <p style="color:#AAA;font-size:14px;margin-bottom:0;">
+        I cittadini virtuali si muovono sulle strade vere del comune,
+        non in linea d'aria. Un cartellone su una strada secondaria
+        risulterà davvero meno visto di uno su un'arteria principale.
+      </p>
+    </div>
+    <div class="callout" style="background:#1A1A1A;border-color:#333;border-top-color:#FF4444;">
+      <div class="callout-title" style="color:#FF4444;">Mezzo-dipendente</div>
+      <p style="color:#AAA;font-size:14px;margin-bottom:0;">
+        Un pedone e un automobilista hanno raggi di visibilità diversi
+        e orari diversi. Il sistema li tratta come individui separati
+        con comportamenti modellati statisticamente su dati ISTAT.
+      </p>
+    </div>
+    <div class="callout" style="background:#1A1A1A;border-color:#333;border-top-color:#FF4444;">
+      <div class="callout-title" style="color:#FF4444;">Riproducibile e validabile</div>
+      <p style="color:#AAA;font-size:14px;margin-bottom:0;">
+        Seed fisso garantisce risultati riproducibili. La modalità confronto
+        Python/Claude valida automaticamente la coerenza del modello.
+        Ogni simulazione è tracciabile e auditabile.
+      </p>
+    </div>
+    <div class="callout" style="background:#1A1A1A;border-color:#333;border-top-color:#FF4444;">
+      <div class="callout-title" style="color:#FF4444;">Scalabile</div>
+      <p style="color:#AAA;font-size:14px;margin-bottom:0;">
+        Da un comune a una campagna nazionale. Il parallelismo multi-core
+        permette di simulare decine di comuni in parallelo. La cache OSM
+        evita download ripetuti.
+      </p>
+    </div>
+    <div class="callout" style="background:#1A1A1A;border-color:#333;border-top-color:#FF4444;">
+      <div class="callout-title" style="color:#FF4444;">Integrato al business</div>
+      <p style="color:#AAA;font-size:14px;margin-bottom:0;">
+        Legge direttamente dal DB campagne esistente. Output su MySQL
+        pronto per dashboarding. Generazione automatica report PPT
+        con branding mediaitalia.
+      </p>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════════════════════════ -->
+<div class="footer">
+  <strong>▶ mediaitalia</strong> · wHereAgent v1.0 · Tecnologia proprietaria · 2025<br>
+  <span style="font-size:11px;margin-top:8px;display:block;">
+    Agent-Based Modeling · OpenStreetMap · ISTAT · Claude Haiku · MySQL
+  </span>
+</div>
+
+</body>
+</html>

@@ -41,20 +41,21 @@ class MySQLLoader:
         self.cursor.close()
         self.conn.close()
 
-    # ── Carica impianti da campaigns ────────────────────────────
+    # ── Carica impianti da campagneresult ───────────────────────
     def carica_impianti(
         self,
         id_campagna: int,
         giorni_campagna: int = 14,
     ) -> list[Impianto]:
         """
-        Legge tutti gli impianti di una campagna dalla tabella campaigns.
+        Legge tutti gli impianti di una campagna dalla tabella campagneresult.
+        Usa TipoImpianto come base per la classificazione del tipo.
         """
         query = """
             SELECT
                 id,
                 CodiceInpe,
-                TipoImpiantoDesc,
+                TipoImpianto,
                 TipoImpiantoDet,
                 Formato,
                 Latitudine,
@@ -62,7 +63,7 @@ class MySQLLoader:
                 istatComune,
                 idProvincia,
                 Cimasa
-            FROM campaigns
+            FROM campagneresult
             WHERE idCampagna = %s
               AND Latitudine IS NOT NULL
               AND Longitudine IS NOT NULL
@@ -78,7 +79,7 @@ class MySQLLoader:
             except (ValueError, AttributeError):
                 continue  # salta impianti senza coordinate valide
 
-            tipo = normalizza_tipo(r["TipoImpiantoDesc"])
+            tipo = normalizza_tipo(r["TipoImpianto"])
 
             # Stima velocità in base al tipo
             velocita = {
@@ -96,7 +97,7 @@ class MySQLLoader:
                 lon=lon,
                 zona=zona_key,
                 formato=r["Formato"] or "6x3",
-                illuminato=True,        # aggiorna se hai il campo in DB
+                illuminato=True,
                 digitale=(tipo == "dooh"),
                 angolo_visibilita=90.0,
                 velocita_media_kmh=velocita,
@@ -106,39 +107,33 @@ class MySQLLoader:
         print(f"[MySQLLoader] Caricati {len(impianti)} impianti per campagna {id_campagna}")
         return impianti
 
-    # ── Carica zone da view_deepooh ──────────────────────────────
+    # ── Carica zone da campagneresult ────────────────────────────
     def carica_zone(self, id_campagna: int) -> dict[str, ZonaDemografica]:
         """
-        Legge i dati demografici dalla view_deepooh per i comuni
-        degli impianti della campagna, usando istat come chiave.
-
-        Nota: view_deepooh ha già grpAdu e abitanti — li usiamo
-        come riferimento per calibrare i flussi stimati.
+        Legge i dati demografici dalla tabella campagneresult per i comuni
+        degli impianti della campagna, usando istatComune come chiave.
         """
         query = """
             SELECT DISTINCT
-                v.istat,
-                v.comune,
-                v.provincia,
-                v.Regione,
-                v.TipoImpianto,
-                v.abitanti,
-                v.grpAdu,
-                v.grpGravAdu,
-                v.grpNazAdu
-            FROM view_deepooh v
-            INNER JOIN campaigns c
-                ON v.istat = c.istatComune
-            WHERE c.idCampagna = %s
-              AND v.abitanti IS NOT NULL
-              AND v.abitanti > 0 limit 5
+                istatComune,
+                comune,
+                provincia,
+                regione,
+                TipoImpianto,
+                abitanti,
+                densita,
+                superficie
+            FROM campagneresult
+            WHERE idCampagna = %s
+              AND abitanti IS NOT NULL
+              AND abitanti > 0
         """
         self.cursor.execute(query, (id_campagna,))
         rows = self.cursor.fetchall()
 
         zone = {}
         for r in rows:
-            istat = r["istat"]
+            istat = r["istatComune"]
             if not istat or istat in zone:
                 continue
 
@@ -146,21 +141,18 @@ class MySQLLoader:
             if abitanti == 0:
                 continue
 
-            # Stima densità da popolazione (approssimazione)
-            # In assenza di dati superficie, uso fasce per regione
-            densita_stimata = self._stima_densita(r["comune"], r["Regione"], abitanti)
+            densita = float(r["densita"] or 0)
+            if densita <= 0:
+                densita = self._stima_densita(abitanti)
 
-            # Stima flussi dal GRP già presente in DB
-            # grpAdu = GRP adulti certificato → backsolve flusso pedonale
-            grp_adu = float(r["grpAdu"] or 0)
-            flusso_ped_stimato = self._backsolve_flusso(grp_adu, abitanti)
+            flusso_ped_stimato = self._stima_flusso(abitanti, densita)
 
             zone[istat] = ZonaDemografica(
                 zona=istat,
                 popolazione=abitanti,
-                densita_abitativa=densita_stimata,
-                eta_media=42.0,      # media Italia; aggiorna con ISTAT per comune
-                pct_18_34=0.28,      # medie nazionali ISTAT 2023
+                densita_abitativa=densita,
+                eta_media=42.0,
+                pct_18_34=0.28,
                 pct_35_54=0.37,
                 pct_55plus=0.35,
                 flusso_pedonale_ora_peak=flusso_ped_stimato,
@@ -172,7 +164,7 @@ class MySQLLoader:
         return zone
 
     # ── Helpers privati ─────────────────────────────────────────
-    def _stima_densita(self, comune: str, regione: str, abitanti: int) -> float:
+    def _stima_densita(self, abitanti: int) -> float:
         """Stima la densità abitativa in base alla dimensione del comune."""
         if abitanti > 500000:
             return 7000.0
@@ -185,17 +177,14 @@ class MySQLLoader:
         else:
             return 200.0
 
-    def _backsolve_flusso(self, grp_adu: float, abitanti: int) -> int:
+    def _stima_flusso(self, abitanti: int, densita: float) -> int:
         """
-        Backsolve del flusso pedonale dal GRP certificato.
-        GRP = (Reach/Pop)*100 * Frequency
-        Assumendo VI=0.85, AF=0.45, CT=1.0, k=0.50, giorni=14:
-        si può stimare il flusso giornaliero approssimativo.
+        Stima il flusso pedonale orario in peak basandosi su popolazione
+        e densità abitativa del comune.
         """
-        if grp_adu <= 0 or abitanti <= 0:
-            return max(int(abitanti * 0.03), 100)  # fallback: 3% pop/ora
-
-        # Stima conservativa: grpAdu è già un output, lo usiamo come
-        # proxy per calibrare il flusso base
-        flusso_stimato = int((grp_adu / 100) * abitanti / 14 / 6)
-        return max(flusso_stimato, 100)
+        if abitanti <= 0:
+            return 100
+        # Comuni più densi hanno maggiore mobilità pedonale
+        coeff = min(densita / 1000, 3.0)  # cap a 3x
+        flusso = int(abitanti * 0.04 * (1 + coeff) / 6)
+        return max(flusso, 100)
